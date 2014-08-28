@@ -4,6 +4,7 @@
 
 interrupt               interact with OS
                         TBD
+halt                    exit
 enable.interrupts
 disable.interrupts
 
@@ -14,6 +15,7 @@ save                    saves regs and return address
 return                  restores
 push.R                  pushes reg
 pop.R                   pops into reg
+pop                     kill top value
 
 add                     add top two values and push result
 sub
