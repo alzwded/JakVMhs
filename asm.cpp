@@ -254,6 +254,7 @@ static void push_imed()
         add_label_used_at(*current_size, token);
         produce(0);
         produce(0);
+        return;
     }
 
     char* endptr;
