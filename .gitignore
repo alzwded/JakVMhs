@@ -21,3 +21,16 @@
 *.i*86
 *.x86_64
 *.hex
+
+# vim files
+*.sw*
+
+# compiled files
+*.hss
+*.out
+*.bin
+log
+*.log
+
+# cygwin
+*.stackdump
