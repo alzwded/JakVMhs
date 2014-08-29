@@ -148,7 +148,7 @@ static void resolve_labels()
     std::for_each(label_usages.begin(), label_usages.end(), [&](decltype(label_usages)::value_type const& lbl){
         auto found = label_definitions.find(lbl.second);
         if(found == label_definitions.end()) error("unknown label");
-        unsigned short data = found->second & 0xFFFF;
+        unsigned short data = ((found->second >> 8) & 0xFF) | ((found->second & 0xFF) << 8);
 
         fseek(fout, lbl.first, SEEK_SET);
         fwrite(&data, sizeof(unsigned short), 1, fout);
