@@ -228,6 +228,7 @@ static void os_callextroutine()
             break;
         }
     }
+    // load lib if not found || error
     if(found == -1) {
         char actualLibName[256];
         sprintf(actualLibName, "lib%s.so", libname);
@@ -246,8 +247,8 @@ static void os_callextroutine()
         found = numLoadedUtilities;
         numLoadedUtilities++;
     }
+    // exec proc
     loadedUtilities[found].utilities.utilities[wFunc](os_get_vm_utilities(), &machine.regs);
-    // find proc 
 }
 
 //============================================================
