@@ -6,7 +6,7 @@
 ; begin code
 
 .code
-    Pq  :myVal
+    PI  :myVal
     PI  :oneWord
     LD
     PI  :str
