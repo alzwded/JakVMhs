@@ -3,6 +3,7 @@
 #include <string.h>
 
 struct {
+#define SP 31
 #define IP 32
 #define RLAST 33
     short regs[RLAST];
@@ -12,7 +13,6 @@ struct {
     short stack_data[0xFFFF];
     short call_stack[0xFFF][RLAST]; // 4096 levels
 
-    short* sp;
     short(* csp)[RLAST];
 } machine;
 
@@ -28,8 +28,9 @@ static void load_image()
 {
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
     memset(&machine.call_stack[0], 0, 0xFFF * RLAST * sizeof(short));
-    machine.sp = &machine.stack_data[0];
+    machine.sp = 0;
     machine.csp = &machine.call_stack[0];
+    machine.regs[IP] = 0;
 
     printf("loading %s\n", g_image);
 
@@ -38,14 +39,14 @@ static void load_image()
 
 static void push(short x)
 {
-    cassert(machine.sp - &machine.stack_data[0] < 0xFFFF);
-    *machine.sp++ = x;
+    cassert(machine.sp < 0xFFFF);
+    machine.stack_data[machine.regs[SP]++] = x;
 }
 
 static short pop()
 {
-    cassert(machine.sp - &machine.stack_data[0] > 0);
-    short ret = *(--machine.sp);
+    cassert(machine.sp > 0);
+    short ret = machine.stack_data[machine.regs[--SP]];
     return ret;
 }
 
@@ -242,6 +243,7 @@ static void save()
 {
     cassert(machine.csp - machine.call_stack < 0xFFF);
     memcpy(machine.csp++, &machine.regs[0], sizeof(short) * RLAST);
+    machine.csp[-1][IP]++; // increment return address
 }
 
 static void store()
@@ -376,6 +378,14 @@ static void decode()
     }
 }
 
+void exec()
+{
+    while(1) {
+        decode();
+        machine.regs[IP]++;
+    }
+}
+
 //============================================================
 // main
 //============================================================
@@ -386,4 +396,6 @@ int main(int argc, char* argv[])
     memset(&machine.regs[0], 0, sizeof(short) * RLAST);
     g_image = argv[1];
     load_image();
+    exec();
+    return 0;
 }
