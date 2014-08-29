@@ -104,12 +104,14 @@ static void load_image()
 
 static void push(short x)
 {
+    static int n = 0;
     cassert(machine.regs[SP] < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
 static short pop()
 {
+    static int n = 0;
     cassert(machine.regs[SP] > 0);
     short ret = machine.stack_data[--machine.regs[SP]];
     return ret;
@@ -134,11 +136,11 @@ static void os_logword()
     short w = pop();
     switch(g_logger_state) {
     case LS_SECOND:
-        printf("%035X\n", (int)w);
+        printf("%35X\n", (int)w);
         g_logger_state = LS_FIRST;
         break;
     case LS_FIRST:
-        printf("%035X", (int)w);
+        printf("%35X", (int)w);
         g_logger_state = LS_SECOND;
         break;
     default:
@@ -349,7 +351,7 @@ static void ior()
 static void jump()
 {
     unsigned short addr = pop();
-    machine.regs[IP] = addr;
+    machine.regs[IP] = addr - 1;
 }
 
 static void jump_ifzero()
@@ -357,7 +359,7 @@ static void jump_ifzero()
     unsigned short addr = pop();
     short cond = pop();
 
-    if(!cond) machine.regs[IP] = addr;
+    if(!cond) machine.regs[IP] = addr - 1;
 }
 
 static void load()
@@ -502,6 +504,12 @@ static void xor()
     push(a ^ b);
 }
 
+static void halt_this_thing()
+{
+    printf("\n");
+    exit(0);
+}
+
 //============================================================
 // decoder
 //============================================================
@@ -519,6 +527,12 @@ static void further_decode()
             break;
         case 0x02:
             reset();
+            break;
+        case 0x03:
+            pop_op();
+            break;
+        case 0x04:
+            halt_this_thing();
             break;
         case 0x05:
             push_immed();

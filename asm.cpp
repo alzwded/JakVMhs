@@ -396,6 +396,14 @@ static void for_code()
                 continue;
             default: error("invalid token");
             }
+        case 'H':
+            switch(token[1]) {
+            case 'L':
+                END(token, 2);
+                produce(0x4);
+                continue;
+            default: error("invalid token");
+            }
         case 'J':
             switch(token[1]) {
             case 'P':
@@ -457,6 +465,10 @@ static void for_code()
             case 'I':
                 END(token, 2);
                 push_imed();
+                continue;
+            case 'P':
+                END(token, 2);
+                produce(0x3);
                 continue;
             case 'R':
                 if(token[2] != '.') error("expected register number");
