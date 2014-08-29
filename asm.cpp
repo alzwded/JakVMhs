@@ -148,7 +148,7 @@ static void resolve_labels()
     std::for_each(label_usages.begin(), label_usages.end(), [&](decltype(label_usages)::value_type const& lbl){
         auto found = label_definitions.find(lbl.second);
         if(found == label_definitions.end()) error("unknown label");
-        unsigned short data = ((found->second >> 8) & 0xFF) | ((found->second & 0xFF) << 8);
+        unsigned short data = found->second & 0xFFFF;
 
         fseek(fout, lbl.first, SEEK_SET);
         fwrite(&data, sizeof(unsigned short), 1, fout);
@@ -298,7 +298,7 @@ static void for_data()
                         c2 = name[i + 1];
                     }
 
-                    short data = ((unsigned char)c1) | ((unsigned char)c2 << 8);
+                    unsigned short data = ((unsigned char)c2) | ((unsigned char)c1 << 8);
                     fwrite(&data, sizeof(short), 1, fout);
                     *current_size = ftell(fout);
                     size--;
@@ -311,7 +311,7 @@ static void for_data()
                 long num = strtol(name.c_str(), &endptr, 0);
                 if(endptr && *endptr) error("invalid number");
 
-                short data = ((num >> 8) & 0xFF) | ((num & 0xFF) << 8);
+                unsigned short data = num & 0xFFFF;
                 fwrite(&data, sizeof(short), 1, fout);
                 *current_size = ftell(fout);
                 size--;

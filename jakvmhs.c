@@ -1,3 +1,8 @@
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,25 +33,41 @@ static void load_image()
 {
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
     memset(&machine.call_stack[0], 0, 0xFFF * RLAST * sizeof(short));
-    machine.sp = 0;
+    machine.regs[SP] = 0;
     machine.csp = &machine.call_stack[0];
     machine.regs[IP] = 0;
 
     printf("loading %s\n", g_image);
 
-    abort();
+    int fd = open(g_image, O_RDONLY);
+    cassert(fd != -1);
+
+    struct stat sb;
+    cassert(fstat(fd, &sb) != -1);
+
+    off_t offset = 0;
+    size_t length = sb.st_size;
+
+    char* image = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, offset);
+
+    // copy memory
+    memcpy(machine.data, image + 0x10000, sizeof(short) * 0x10000);
+    memcpy(machine.code, image, sizeof(unsigned char) * 0x10000);
+
+    munmap(image, sb.st_size);
+    close(fd);
 }
 
 static void push(short x)
 {
-    cassert(machine.sp < 0x10000);
+    cassert(machine.regs[SP] < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
 static short pop()
 {
-    cassert(machine.sp > 0);
-    short ret = machine.stack_data[machine.regs[--SP]];
+    cassert(machine.regs[SP] > 0);
+    short ret = machine.stack_data[--machine.regs[SP]];
     return ret;
 }
 
