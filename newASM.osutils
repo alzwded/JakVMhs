@@ -1,0 +1,58 @@
+Utilities provided to the VM:
+    0   reserved & undefined
+        produces an error
+    1   assign_short_name(p)
+        takes a string pointer and returns an associated word
+        to be used instead of the long name in services that expect a
+        string
+    2   free_short_name(w)
+        eliminates the short name
+    3   log_word(w)
+        logs a word to standard output
+        the format is "%035s%035s\n" (2 items per line, 35 characters per item)
+    4   log_string(w)
+        logs a string to standard output
+        w is an already assigned short name
+    5   log_string_p(p)
+        idem, but takes a pointer to a string
+    6   (w) read_word
+        reads a number from stdin
+    7   (w) read_string
+        reads a string from stdin and returns a new short name
+    8   (w*) deref_short_name
+        dereferences a short name
+        pushes the words onto the stack in reverse order, ending with length
+    20  call_ext_routine(wLib, wFunc, ...)
+        calls an external routine (wFunc) from a library (wLib)
+        wLib and wFunc are short names
+        the parameters are on the stack
+    any undefined utility
+        produces an error
+
+Utilities provided to external libs:
+    typedef struct {
+        /* manipulate the VM stack (e.g. for grabbing parameters) */
+        unsigned short (*pop)();
+        void (*push)(unsigned short);
+
+        /* start a procedure call into the VM; returns */
+        unsigned short (*exec_vm_code)(unsigned short address, unsigned short* stack);
+        /* dereference a pointer */
+        unsigned short (*deref)(unsigned short address);
+        /* dereference a string pointer; needs to be free'd */
+        char* (*deref_string)(unsigned short address);
+        /* dereference a short name; do not free */
+        char const* (*from_short_name)(unsigned short name);
+    } vm_utilities_t;
+
+External libs need to implement:
+    typedef void (*utility_fn)(vm_utilities_t, unsigned short (*regs)[32]);
+    struct {
+        size_t numUtilities;
+        utility_fn* utilities;
+    } initialize();
+
+    // and of course, somewhere, internally...
+    void a_utility_fn(vm_utilities_t VM, unsigned short (*regs)[32]);
+    void b_utility_fn(vm_utilities_t VM, unsigned short (*regs)[32]);
+    // ...

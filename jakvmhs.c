@@ -22,6 +22,13 @@ struct {
     short(* csp)[RLAST];
 } machine;
 
+typedef enum {
+    LS_UNDEFINED = 0,
+    LS_FIRST,
+    LS_SECOND
+} logger_state_t;
+static logger_state_t g_logger_state = LS_UNDEFINED;
+
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
 static char const* g_image = NULL;
@@ -97,9 +104,117 @@ static short pop()
     return ret;
 }
 
+//=============================================================
+// OS
+//=============================================================
+
+static char* os_deref_string(unsigned short w)
+{
+    error("os_deref_string NOT IMPLEMENTED");
+}
+
+static char const* os_from_short_name(unsigned short w)
+{
+    error("os_from_short_name NOT IMPLEMENTED");
+}
+
+static void os_logword()
+{
+    short w = pop();
+    switch(g_logger_state) {
+    case LS_SECOND:
+        printf("%035X\n", (int)w);
+        g_logger_state = LS_FIRST;
+        break;
+    case LS_FIRST:
+        printf("%035X", (int)w);
+        g_logger_state = LS_SECOND;
+        break;
+    default:
+        error("undefined log_word state");
+    }
+}
+
+static void os_logstring_p()
+{
+    short w = pop();
+    char* s = os_deref_string(w);
+    switch(g_logger_state) {
+    case LS_SECOND:
+        printf("%35s\n", s);
+        g_logger_state = LS_FIRST;
+        break;
+    case LS_FIRST:
+        printf("%35s", s);
+        g_logger_state = LS_SECOND;
+        break;
+    default:
+        error("undefined log_word state");
+    }
+    free(s);
+}
+
+static void os_logstring()
+{
+    short w = pop();
+    char const* s = os_from_short_name(w);
+    switch(g_logger_state) {
+    case LS_SECOND:
+        printf("%35s\n", s);
+        g_logger_state = LS_FIRST;
+        break;
+    case LS_FIRST:
+        printf("%35s", s);
+        g_logger_state = LS_SECOND;
+        break;
+    default:
+        error("undefined log_word state");
+    }
+    free(s);
+}
+
 //============================================================
 // operations
 //============================================================
+
+static void interrupt()
+{
+    short which = pop();
+    switch(which) {
+    case 1:
+        error("NOT IMPLEMENTED: assign_short_name");
+        break;
+    case 2:
+        error("NOT IMPLEMENTED: free_short_name");
+        break;
+    case 3:
+        os_logword();
+        break;
+    case 4:
+        os_logstring();
+        break;
+    case 5:
+        os_logstring_p();
+        break;
+    case 6:
+        error("NOT IMPLEMENTED: read_word");
+        break;
+    case 7:
+        error("NOT IMPLEMENTED: read_string");
+        break;
+    case 8:
+        error("NOT IMPLEMENTED: deref_short_name");
+        break;
+    case 20:
+        error("NOT IMPLEMENTED: call_ext_routine");
+        break;
+    case 0:
+        logger(LOG_ERR, "Utility 0 is reserved and undefined\n");
+        /*FALLTHROUGH*/
+    default:
+        error("Undefined utility called");
+    }
+}
 
 static void add()
 {
@@ -144,12 +259,6 @@ static void div_op()
     short b = pop();
     short a = pop();
     push(a / b);
-}
-
-static void interrupt()
-{
-    logger(LOG_ERR, "IN(0x01) instruction not implemented!\n");
-    abort();
 }
 
 static void ior()
@@ -443,6 +552,8 @@ int main(int argc, char* argv[])
     if(argc != 2) abort();
     memset(&machine.regs[0], 0, sizeof(short) * RLAST);
     g_image = argv[1];
+
+    g_logger_state = LS_FIRST;
 
     reset_machine_state();
     load_image();

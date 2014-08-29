@@ -42,6 +42,9 @@
     RT                  ; return
 
 :sysprintint
+    PI  3               ; call log_word
+    IN                  ;
+    RT                  ; return
 ; do some magic to get this onscreen
 
 ;==========================================
