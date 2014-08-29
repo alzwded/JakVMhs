@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,21 +24,44 @@ struct {
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
-char const* g_image = NULL;
+static char const* g_image = NULL;
+static int g_flags = ~0;
 
 //============================================================
 // internal
 //============================================================
+#define LOG_ERR 0x80000000
 
-static void load_image()
+static inline void logger(int flags, char const* fmt, ...)
+{
+    FILE* f = stdout;
+    int skip = 0;
+    if(flags & LOG_ERR) f = stderr;
+    if((flags & (0 | 0))) {
+        if(!(flags & g_flags))
+        {
+            skip = 1;
+        }
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    if(!skip) vfprintf(f, fmt, args);
+    va_end(args);
+}
+
+static void reset_machine_state()
 {
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
     memset(&machine.call_stack[0], 0, 0xFFF * RLAST * sizeof(short));
     machine.regs[SP] = 0;
     machine.csp = &machine.call_stack[0];
     machine.regs[IP] = 0;
+}
 
-    printf("loading %s\n", g_image);
+static void load_image()
+{
+    logger(0, "Loading %s\n", g_image);
 
     int fd = open(g_image, O_RDONLY);
     cassert(fd != -1);
@@ -122,6 +146,7 @@ static void div_op()
 
 static void interrupt()
 {
+    logger(LOG_ERR, "IN(0x01) instruction not implemented!\n");
     abort();
 }
 
@@ -196,8 +221,8 @@ static void push_immed()
 
 static void reset()
 {
+    reset_machine_state();
     load_image();
-    abort();
 }
 
 static void register_dec(size_t reg)
@@ -416,7 +441,10 @@ int main(int argc, char* argv[])
     if(argc != 2) abort();
     memset(&machine.regs[0], 0, sizeof(short) * RLAST);
     g_image = argv[1];
+
+    reset_machine_state();
     load_image();
+
     exec();
     return 0;
 }
