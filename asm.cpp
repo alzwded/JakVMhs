@@ -7,21 +7,46 @@
 #include <cstdio>
 #include <sys/types.h>
 #include <cctype>
+#include <cstdarg>
 
-enum asmmode_t {
+static enum asmmode_t {
     ERROR = 0,
     DATA,
     CODE
 } mode = ERROR;
 
-FILE* fin = NULL,* fout = NULL;
-size_t data_pos, code_pos;
-size_t* current_size;
+static FILE* fin = NULL,* fout = NULL;
+static size_t data_pos, code_pos;
+static size_t* current_size;
+static int g_flags = 0xFFFFFFFF;
+
+#define LOG_ERR 0x80000000
+#define LOG_TOKENIZER 1
+#define LOG_DATAGEN 2
+#define LOG_LABELS 4
+
+static inline void log(int flags, char const* fmt, ...)
+{
+    FILE* f = stdout;
+    int skip = 0;
+    if(flags & LOG_ERR) f = stderr;
+    if((flags & (LOG_TOKENIZER | LOG_DATAGEN | LOG_LABELS))) {
+        if(!(flags & g_flags))
+        {
+            skip = 1;
+        }
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    if(!skip) vfprintf(f, fmt, args);
+    va_end(args);
+}
 
 static void error()
 {
     size_t pos = ftell(fin);
-    fprintf(stderr, "Error @%ld\n", pos);
+    log(LOG_ERR, "Error @%ld\n", pos);
     fflush(stderr);
     throw 1;
 }
@@ -30,7 +55,7 @@ static void error()
 // internal
 //=============================================================
 
-#define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s @%ld\n", #X, ftell(fin)), fflush(stderr), throw 0, 0 : 1)
+#define cassert(X) (!(X) ? log(LOG_ERR, "Assertion failed: %s @%ld\n", #X, ftell(fin)), fflush(stderr), throw 0, 0 : 1)
 #define END(X, N) if(X[N] != '\0') error();
 
 static void clearOutputFile(FILE* f, size_t size)
@@ -97,7 +122,7 @@ static std::string getToken()
     } while(1);
     *p++ = '\0';
 
-    fprintf(stdout, "next token: '%s'\n", tok);
+    log(LOG_TOKENIZER, "next token: '%s'\n", tok);
     return tok;
 }
 
@@ -106,13 +131,13 @@ std::map<size_t, std::string> label_usages;
 
 static void add_label_to_definitions(std::string const& token)
 {
-    fprintf(stdout, "label %s defined at %lX\n", token.c_str(), *current_size);
+    log(LOG_LABELS, "label %s defined at %lX\n", token.c_str(), *current_size);
     label_definitions.insert(std::make_pair(std::string(token), *current_size));
 }
 
 static void add_label_used_at(size_t size, std::string const& token)
 {
-    fprintf(stdout, "label %s used at %lX\n", token.c_str(), *current_size);
+    log(LOG_LABELS, "label %s used at %lX\n", token.c_str(), *current_size);
     label_usages.insert(std::make_pair(size, std::string(token)));
 }
 
@@ -126,7 +151,7 @@ static void resolve_labels()
         fseek(fout, lbl.first, SEEK_SET);
         fwrite(&data, sizeof(unsigned short), 1, fout);
 
-        fprintf(stdout, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
+        log(LOG_LABELS, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
     });
 }
 
@@ -249,7 +274,7 @@ static void for_data()
         long size = strtol(ssize.c_str(), &endptr, 0);
         if(endptr && *endptr) error();
 
-        fprintf(stdout, "need to consume: %ld\n", size);
+        log(LOG_DATAGEN, "need to consume: %ld\n", size);
 
         while(size > 0 && !feof(fin)) {
             std::string name = getToken();
@@ -275,9 +300,9 @@ static void for_data()
                     *current_size = ftell(fout);
                     size--;
                     i += 2;
-                    fprintf(stdout, "one byte down after %02X%02X\n", (int)c1, (int)c2);
+                    log(LOG_DATAGEN, "one byte down after %02X%02X\n", (int)c1, (int)c2);
                 }
-                fprintf(stdout, "after %s still need %ld\n", name.c_str(), size);
+                log(LOG_DATAGEN, "after %s still need %ld\n", name.c_str(), size);
             } else {
                 char* endptr;
                 long num = strtol(name.c_str(), &endptr, 0);
@@ -287,7 +312,7 @@ static void for_data()
                 fwrite(&data, sizeof(short), 1, fout);
                 *current_size = ftell(fout);
                 size--;
-                fprintf(stdout, "after %s still need %ld\n", name.c_str(), size);
+                log(LOG_DATAGEN, "after %s still need %ld\n", name.c_str(), size);
             }
         }
     }
@@ -549,9 +574,11 @@ int main(int argc, char* argv[])
     data_pos = 0x10000;
     fseek(fout, data_pos, SEEK_SET);
 
+    g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
+
     assemble();
 
-    fprintf(stdout, "DONE\n");
+    log(0, "DONE\n");
     fflush(stdout);
 
     fclose(fin);
