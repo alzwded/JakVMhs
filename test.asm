@@ -31,7 +31,7 @@
     JP                  ;
 
 :print_num
-    PR.0                ; n (r0) = param1
+    PR.30               ; n (r0) = param1
     PI  11              ; n = 11 - n
     RP.0                ;
     SU                  ; 

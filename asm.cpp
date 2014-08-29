@@ -164,6 +164,7 @@ static void produce_reg(unsigned char code, char const* token)
                 break;
             default: error();
             }
+            break;
         case '2':
             switch(token[4]) {
             case '\0':
@@ -183,6 +184,7 @@ static void produce_reg(unsigned char code, char const* token)
                 break;
             default: error();
             }
+            break;
         case '3':
             switch(token[4]) {
             case '\0':
@@ -194,6 +196,7 @@ static void produce_reg(unsigned char code, char const* token)
                 break;
             default: error();
             }
+            break;
         case '0':
         case '4':
         case '5':
