@@ -613,7 +613,7 @@ static void decode()
     }
 }
 
-void exec()
+static void exec()
 {
     while(1) {
         decode();
