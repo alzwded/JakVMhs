@@ -7,11 +7,11 @@ struct {
 #define IP 32
 #define RLAST 33
     short regs[RLAST];
-    unsigned char code[0xFFFF];
-    short data[0xFFFF];
+    unsigned char code[0x10000];
+    short data[0x10000];
 
-    short stack_data[0xFFFF];
-    short call_stack[0xFFF][RLAST]; // 4096 levels
+    short stack_data[0x10000];
+    short call_stack[0x1000][RLAST]; // 4096 levels
 
     short(* csp)[RLAST];
 } machine;
@@ -39,7 +39,7 @@ static void load_image()
 
 static void push(short x)
 {
-    cassert(machine.sp < 0xFFFF);
+    cassert(machine.sp < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
