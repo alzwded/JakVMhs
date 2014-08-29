@@ -243,8 +243,11 @@ static void for_data()
             return;
         }
         add_label_to_definitions(name);
+
         std::string ssize = getToken();
-        long size = atol(ssize.c_str());
+        char* endptr;
+        long size = strtol(ssize.c_str(), &endptr, 0);
+        if(endptr && *endptr) error();
 
         fprintf(stdout, "need to consume: %ld\n", size);
 
@@ -276,7 +279,10 @@ static void for_data()
                 }
                 fprintf(stdout, "after %s still need %ld\n", name.c_str(), size);
             } else {
-                long num = atol(name.c_str());
+                char* endptr;
+                long num = strtol(name.c_str(), &endptr, 0);
+                if(endptr && *endptr) error();
+
                 short data = ((num >> 8) & 0xFF) | ((num & 0xFF) << 8);
                 fwrite(&data, sizeof(short), 1, fout);
                 *current_size = ftell(fout);
