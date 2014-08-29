@@ -49,7 +49,7 @@ static void tillEol()
     int c;
     do {
         c = fgetc(fin);
-        if(isspace(c)) {
+        if(c == '\n') {
             ungetc(c, fin);
             return;
         }
@@ -64,22 +64,40 @@ static std::string getToken()
     char tok[128];
     char* p = &tok[0];
     int c;
-    while(isspace(c = fgetc(fin)))
-        ;
+    do {
+        while(isspace(c = fgetc(fin)))
+            ;
+        if(c == ';') tillEol();
+        else break;
+    } while(1);
     *p++ = c;
     do {
         if(feof(fin)) break;
+
         c = fgetc(fin);
+
         if(c == EOF || feof(fin)) break;
-        if(isspace(c)) break;
-        if(c == ',' && tok[0] != '\'') break;
+        if(isspace(c)) {
+            if((p - tok > 0)) break;
+            else continue;
+        }
+        if(c == ',') {
+            if(p - tok > 0 && tok[0] != '\'') {
+                break;
+            } else {
+                continue;
+            }
+        }
         if(c == ';') {
             tillEol();
             continue;
         }
+
         *p++ = c;
     } while(1);
     *p++ = '\0';
+
+    fprintf(stdout, "next token: '%s'\n", tok);
     return tok;
 }
 
@@ -88,26 +106,27 @@ std::map<size_t, std::string> label_usages;
 
 static void add_label_to_definitions(std::string const& token)
 {
-    fprintf(stderr, "label %s defined at %lX\n", token.c_str(), *current_size);
+    fprintf(stdout, "label %s defined at %lX\n", token.c_str(), *current_size);
     label_definitions.insert(std::make_pair(std::string(token), *current_size));
 }
 
 static void add_label_used_at(size_t size, std::string const& token)
 {
-    fprintf(stderr, "label %s used at %lX\n", token.c_str(), *current_size);
+    fprintf(stdout, "label %s used at %lX\n", token.c_str(), *current_size);
     label_usages.insert(std::make_pair(size, std::string(token)));
 }
 
 static void resolve_labels()
 {
     std::for_each(label_usages.begin(), label_usages.end(), [&](decltype(label_usages)::value_type const& lbl){
-        fseek(fout, lbl.first, SEEK_SET);
         auto found = label_definitions.find(lbl.second);
         if(found == label_definitions.end()) error();
         unsigned short data = ((found->second >> 8) & 0xFF) | ((found->second & 0xFF) << 8);
+
+        fseek(fout, lbl.first, SEEK_SET);
         fwrite(&data, sizeof(unsigned short), 1, fout);
 
-        fprintf(stderr, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
+        fprintf(stdout, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
     });
 }
 
@@ -220,13 +239,16 @@ static void for_data()
         std::string ssize = getToken();
         long size = atol(ssize.c_str());
 
+        fprintf(stdout, "need to consume: %ld\n", size);
+
         while(size > 0 && !feof(fin)) {
             std::string name = getToken();
             if(name[0] == '\'') {
                 size_t i = 1;
-                auto pEnd = name.substr(1).rfind('\'') - 1;
+                auto pEnd = name.substr(1).rfind('\'');
                 cassert(pEnd != std::string::npos);
-                while(i <= pEnd && name[i] != '\'') {
+                ++pEnd; // i starts at one
+                while(i < pEnd) {
                     char c1 = '\0';
                     char c2 = '\0';
 
@@ -238,15 +260,21 @@ static void for_data()
                         c2 = name[i + 1];
                     }
 
-                    short data = ((unsigned char)c1 << 8) | ((unsigned char)c2 << 8);
+                    short data = ((unsigned char)c1) | ((unsigned char)c2 << 8);
                     fwrite(&data, sizeof(short), 1, fout);
+                    *current_size = ftell(fout);
                     size--;
+                    i += 2;
+                    fprintf(stdout, "one byte down after %02X%02X\n", (int)c1, (int)c2);
                 }
+                fprintf(stdout, "after %s still need %ld\n", name.c_str(), size);
             } else {
                 long num = atol(name.c_str());
                 short data = ((num >> 8) & 0xFF) | ((num & 0xFF) << 8);
                 fwrite(&data, sizeof(short), 1, fout);
+                *current_size = ftell(fout);
                 size--;
+                fprintf(stdout, "after %s still need %ld\n", name.c_str(), size);
             }
         }
     }
@@ -492,8 +520,8 @@ int main(int argc, char* argv[])
 
     assemble();
 
-    fprintf(stderr, "DONE\n");
-    fflush(stderr);
+    fprintf(stdout, "DONE\n");
+    fflush(stdout);
 
     fclose(fin);
     fclose(fout);

@@ -1,7 +1,15 @@
 .data
-:myVal   7           42, 1, 2, 3, 4, 5, 42     ; comment
+:myVal   7          42, 1, 2, 3, 4, 5, 42     ; comment
+:oneWord 1          42              ; yeah
+:str     4          'hello', 0      ;huh?
+
+; begin code
 
 .code
+    PI  :myVal
+    PI  :oneWord
+    LD
+    PI  :str
     PI  10              ; x (r0) = 10
     PR.0                ;
 
