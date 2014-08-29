@@ -43,12 +43,12 @@ static inline void log(int flags, char const* fmt, ...)
     va_end(args);
 }
 
-static void error()
+static void error(char const* msg)
 {
     size_t pos = ftell(fin);
-    log(LOG_ERR, "Error @%ld\n", pos);
+    log(LOG_ERR, "Error @%ld %s\n", pos, (msg)?msg:"");
     fflush(stderr);
-    throw 1;
+    throw 1; // gracefully exit with an exception
 }
 
 //=============================================================
@@ -56,7 +56,7 @@ static void error()
 //=============================================================
 
 #define cassert(X) (!(X) ? log(LOG_ERR, "Assertion failed: %s @%ld\n", #X, ftell(fin)), fflush(stderr), throw 0, 0 : 1)
-#define END(X, N) if(X[N] != '\0') error();
+#define END(X, N) if(X[N] != '\0') error("expected token to end");
 
 static void clearOutputFile(FILE* f, size_t size)
 {
@@ -145,7 +145,7 @@ static void resolve_labels()
 {
     std::for_each(label_usages.begin(), label_usages.end(), [&](decltype(label_usages)::value_type const& lbl){
         auto found = label_definitions.find(lbl.second);
-        if(found == label_definitions.end()) error();
+        if(found == label_definitions.end()) error("unknown label");
         unsigned short data = ((found->second >> 8) & 0xFF) | ((found->second & 0xFF) << 8);
 
         fseek(fout, lbl.first, SEEK_SET);
@@ -188,7 +188,7 @@ static void produce_reg(unsigned char code, char const* token)
                 END(token, 5);
                 nbr = 10 + (token[4] - '0');
                 break;
-            default: error();
+            default: error("invalid register");
             }
             break;
         case '2':
@@ -209,7 +209,7 @@ static void produce_reg(unsigned char code, char const* token)
                 END(token, 5);
                 nbr = 20 + (token[4] - '0');
                 break;
-            default: error();
+            default: error("invalid register");
             }
             break;
         case '3':
@@ -222,7 +222,7 @@ static void produce_reg(unsigned char code, char const* token)
                 END(token, 5);
                 nbr = 30 + (token[4] - '0');
                 break;
-            default: error();
+            default: error("invalid register");
             }
             break;
         case '0':
@@ -235,7 +235,7 @@ static void produce_reg(unsigned char code, char const* token)
             END(token, 4);
             nbr = token[3] - '0';
             break;
-        default: error();
+        default: error("invalid register");
     }
     
     unsigned char reg = 0x1F & nbr;
@@ -272,7 +272,7 @@ static void for_data()
         std::string ssize = getToken();
         char* endptr;
         long size = strtol(ssize.c_str(), &endptr, 0);
-        if(endptr && *endptr) error();
+        if(endptr && *endptr) error("invalid number");
 
         log(LOG_DATAGEN, "need to consume: %ld\n", size);
 
@@ -306,7 +306,7 @@ static void for_data()
             } else {
                 char* endptr;
                 long num = strtol(name.c_str(), &endptr, 0);
-                if(endptr && *endptr) error();
+                if(endptr && *endptr) error("invalid number");
 
                 short data = ((num >> 8) & 0xFF) | ((num & 0xFF) << 8);
                 fwrite(&data, sizeof(short), 1, fout);
@@ -331,7 +331,7 @@ static void push_imed()
 
     char* endptr;
     long num = strtol(token.c_str(), &endptr, 0);
-    if(endptr && *endptr) error();
+    if(endptr && *endptr) error("invalid number");
     produce((num >> 8) & 0xFF);
     produce(num & 0xFF);
 }
@@ -357,7 +357,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x10);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'C':
             switch(token[1]) {
@@ -369,7 +369,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x19);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'D':
             switch(token[1]) {
@@ -377,7 +377,7 @@ static void for_code()
                 END(token, 2);
                 produce(0xE);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'I':
             switch(token[1]) {
@@ -385,7 +385,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x1);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'J':
             switch(token[1]) {
@@ -397,7 +397,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x1F);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'L':
             switch(token[1]) {
@@ -405,7 +405,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x8);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'M':
             switch(token[1]) {
@@ -417,7 +417,7 @@ static void for_code()
                 END(token, 2);
                 produce(0xC);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'N':
             switch(token[1]) {
@@ -433,7 +433,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x13);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'O':
             switch(token[1]) {
@@ -441,7 +441,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x11);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'P':
             switch(token[1]) {
@@ -450,35 +450,35 @@ static void for_code()
                 push_imed();
                 continue;
             case 'R':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x5, token.c_str());
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'R':
             switch(token[1]) {
             case 'D':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x7, token.c_str());
                 continue;
             case 'I':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x6, token.c_str());
                 continue;
             case 'L':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x2, token.c_str());
                 continue;
             case 'M':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x1, token.c_str());
                 continue;
             case 'P':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x4, token.c_str());
                 continue;
             case 'R':
-                if(token[2] != '.') error();
+                if(token[2] != '.') error("expected register number");
                 produce_reg(0x3, token.c_str());
                 continue;
             case 'S':
@@ -489,7 +489,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x7);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'S':
             switch(token[1]) {
@@ -502,7 +502,7 @@ static void for_code()
             case 'V':
                 produce(0x6);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         case 'X':
             switch(token[1]) {
@@ -510,7 +510,7 @@ static void for_code()
                 END(token, 2);
                 produce(0x12);
                 continue;
-            default: error();
+            default: error("invalid token");
             }
         }
     }
@@ -529,7 +529,7 @@ static void assemble()
         case CODE:
             for_code();
             break;
-        default: error();
+        default: error("invalid section");
         }
         if(mode != prevMode) {
             switch(prevMode) {
@@ -576,7 +576,14 @@ int main(int argc, char* argv[])
 
     g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
 
-    assemble();
+    try {
+        assemble();
+    } catch(...) {
+        log(LOG_ERR, "Errors happened, compilation aborted\n");
+        fclose(fin);
+        fclose(fout);
+        exit(255);
+    }
 
     log(0, "DONE\n");
     fflush(stdout);
