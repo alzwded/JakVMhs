@@ -132,6 +132,8 @@ std::map<size_t, std::string> label_usages;
 static void add_label_to_definitions(std::string const& token)
 {
     log(LOG_LABELS, "label %s defined at %lX\n", token.c_str(), *current_size);
+    auto labelAlreadyDefined = label_definitions.find(token);
+    cassert(labelAlreadyDefined == label_definitions.end());
     label_definitions.insert(std::make_pair(std::string(token), *current_size));
 }
 
@@ -281,7 +283,8 @@ static void for_data()
             if(name[0] == '\'') {
                 size_t i = 1;
                 auto pEnd = name.substr(1).rfind('\'');
-                cassert(pEnd != std::string::npos);
+                auto closingQuote = pEnd;
+                cassert(closingQuote != std::string::npos);
                 ++pEnd; // i starts at one
                 while(i < pEnd) {
                     char c1 = '\0';
