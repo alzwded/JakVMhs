@@ -160,6 +160,7 @@ static void produce_reg(unsigned char code, char const* token)
             case '7':
             case '8':
             case '9':
+                END(token, 5);
                 nbr = 10 + (token[4] - '0');
                 break;
             default: error();
@@ -180,6 +181,7 @@ static void produce_reg(unsigned char code, char const* token)
             case '7':
             case '8':
             case '9':
+                END(token, 5);
                 nbr = 20 + (token[4] - '0');
                 break;
             default: error();
@@ -192,6 +194,7 @@ static void produce_reg(unsigned char code, char const* token)
                 break;
             case '0':
             case '1':
+                END(token, 5);
                 nbr = 30 + (token[4] - '0');
                 break;
             default: error();
@@ -204,6 +207,7 @@ static void produce_reg(unsigned char code, char const* token)
         case '7':
         case '8':
         case '9':
+            END(token, 4);
             nbr = token[3] - '0';
             break;
         default: error();
@@ -315,9 +319,11 @@ static void for_code()
         case 'A':
             switch(token[1]) {
             case 'D':
+                END(token, 2);
                 produce(0xA);
                 continue;
             case 'N':
+                END(token, 2);
                 produce(0x10);
                 continue;
             default: error();
@@ -325,9 +331,11 @@ static void for_code()
         case 'C':
             switch(token[1]) {
             case 'S':
+                END(token, 2);
                 produce(0x18);
                 continue;
             case 'U':
+                END(token, 2);
                 produce(0x19);
                 continue;
             default: error();
@@ -335,6 +343,7 @@ static void for_code()
         case 'D':
             switch(token[1]) {
             case 'V':
+                END(token, 2);
                 produce(0xE);
                 continue;
             default: error();
@@ -342,6 +351,7 @@ static void for_code()
         case 'I':
             switch(token[1]) {
             case 'N':
+                END(token, 2);
                 produce(0x1);
                 continue;
             default: error();
@@ -349,9 +359,11 @@ static void for_code()
         case 'J':
             switch(token[1]) {
             case 'P':
+                END(token, 2);
                 produce(0x1E);
                 continue;
             case 'Z':
+                END(token, 2);
                 produce(0x1F);
                 continue;
             default: error();
@@ -359,6 +371,7 @@ static void for_code()
         case 'L':
             switch(token[1]) {
             case 'D':
+                END(token, 2);
                 produce(0x8);
                 continue;
             default: error();
@@ -366,9 +379,11 @@ static void for_code()
         case 'M':
             switch(token[1]) {
             case 'O':
+                END(token, 2);
                 produce(0xD);
                 continue;
             case 'U':
+                END(token, 2);
                 produce(0xC);
                 continue;
             default: error();
@@ -376,12 +391,15 @@ static void for_code()
         case 'N':
             switch(token[1]) {
             case 'E':
+                END(token, 2);
                 produce(0x17);
                 continue;
             case 'O':
+                END(token, 2);
                 produce(0);
                 continue;
             case 'T':
+                END(token, 2);
                 produce(0x13);
                 continue;
             default: error();
@@ -389,6 +407,7 @@ static void for_code()
         case 'O':
             switch(token[1]) {
             case 'R':
+                END(token, 2);
                 produce(0x11);
                 continue;
             default: error();
@@ -396,6 +415,7 @@ static void for_code()
         case 'P':
             switch(token[1]) {
             case 'I':
+                END(token, 2);
                 push_imed();
                 continue;
             case 'R':
@@ -431,9 +451,11 @@ static void for_code()
                 produce_reg(0x3, token.c_str());
                 continue;
             case 'S':
+                END(token, 2);
                 produce(0x2);
                 continue;
             case 'T':
+                END(token, 2);
                 produce(0x7);
                 continue;
             default: error();
