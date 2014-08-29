@@ -24,7 +24,7 @@ Utilities provided to the VM:
         pushes the words onto the stack in reverse order, ending with length
     20  call_ext_routine(wLib, wFunc, ...)
         calls an external routine (wFunc) from a library (wLib)
-        wLib and wFunc are short names
+        wLib is a short name, wFunc is an index
         the parameters are on the stack
     any undefined utility
         produces an error
@@ -46,7 +46,7 @@ Utilities provided to external libs:
     } vm_utilities_t;
 
 External libs need to implement:
-    typedef void (*utility_fn)(vm_utilities_t, unsigned short (*regs)[32]);
+    typedef void (*utility_fn)(vm_utilities_t, unsigned short (*regs)[33]);
     struct {
         size_t numUtilities;
         utility_fn* utilities;

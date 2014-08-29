@@ -3,10 +3,14 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <dlfcn.h>
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "jakvmhs.h"
 
 struct {
 #define SP 31
@@ -55,6 +59,13 @@ static inline void logger(int flags, char const* fmt, ...)
     va_start(args, fmt);
     if(!skip) vfprintf(f, fmt, args);
     va_end(args);
+}
+
+static void error(char const* msg)
+{
+    logger(LOG_ERR, "Error @%d %s\n", machine.regs[IP], (msg)?msg:"");
+    fflush(stderr);
+    abort();
 }
 
 static void reset_machine_state()
@@ -170,7 +181,73 @@ static void os_logstring()
     default:
         error("undefined log_word state");
     }
-    free(s);
+}
+
+static void os_exec_vm_code(unsigned short address)
+{
+    error("NOT IMPLEMENTED os_exec_vm_code");
+}
+
+static unsigned short* os_deref(unsigned short address)
+{
+    return &machine.data[address];
+}
+
+static vm_utilities_t os_get_vm_utilities()
+{
+    vm_utilities_t utils;
+    utils.pop = &pop;
+    utils.push = &push;
+    utils.deref_string = &os_deref_string;
+    utils.from_short_name = &os_from_short_name;
+    utils.exec_vm_code = &os_exec_vm_code;
+    utils.deref = &os_deref;
+    return utils;
+}
+
+static void os_callextroutine()
+{
+    short wLib = pop();
+    short wFunc = pop();
+    char const* libname = os_from_short_name(wLib);
+
+    typedef struct {
+        char* libname;
+        utility_lib_t utilities;
+    } type_t;
+    static type_t loadedUtilities[128];
+    static size_t numLoadedUtilities;
+
+    // find so libname
+    size_t i = 0;
+    int found = -1;
+    for(; i < numLoadedUtilities; ++i) {
+        if(strcmp(libname, loadedUtilities[i].libname) == 0) {
+            cassert(wFunc < loadedUtilities[i].utilities.numUtilities);
+            found = i;
+            break;
+        }
+    }
+    if(found == -1) {
+        char actualLibName[256];
+        sprintf(actualLibName, "lib%s.so", libname);
+
+        void* dll = dlopen(actualLibName, RTLD_LAZY);
+
+        if(!dll) error("failed to load library");
+        utility_lib_t (*initialize)(void);
+
+        *(void**) (&initialize) = dlsym(dll, "initialize");
+        if(dlerror()) error("failed to call initialize");
+
+        loadedUtilities[numLoadedUtilities].libname = (char*)malloc(strlen(libname));
+        strcpy(loadedUtilities[numLoadedUtilities].libname, libname);
+        loadedUtilities[numLoadedUtilities].utilities = (*initialize)();
+        found = numLoadedUtilities;
+        numLoadedUtilities++;
+    }
+    loadedUtilities[found].utilities.utilities[wFunc](os_get_vm_utilities(), &machine.regs);
+    // find proc 
 }
 
 //============================================================
@@ -206,7 +283,7 @@ static void interrupt()
         error("NOT IMPLEMENTED: deref_short_name");
         break;
     case 20:
-        error("NOT IMPLEMENTED: call_ext_routine");
+        os_callextroutine();
         break;
     case 0:
         logger(LOG_ERR, "Utility 0 is reserved and undefined\n");
