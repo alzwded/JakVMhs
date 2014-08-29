@@ -23,7 +23,7 @@ Utilities provided to the VM:
         dereferences a short name
         pushes the words onto the stack in reverse order, ending with length
     10  (w) read_save_word(w)
-        read one word from the save data (1024 words)
+        read one word from the save data (256 words)
     11  write_save_word(wWhere, wWhat)
         write one byte to the save data
     12  get_save_data(wWhich, wHowMuch, wWhere)
