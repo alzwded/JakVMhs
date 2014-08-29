@@ -22,6 +22,7 @@ static void error()
 {
     size_t pos = ftell(fin);
     fprintf(stderr, "Error @%ld\n", pos);
+    fflush(stderr);
     throw 1;
 }
 
@@ -29,7 +30,7 @@ static void error()
 // internal
 //=============================================================
 
-#define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s @%ld\n", #X, ftell(fin)), throw 0, 0 : 1)
+#define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s @%ld\n", #X, ftell(fin)), fflush(stderr), throw 0, 0 : 1)
 #define END(X, N) if(X[N] != '\0') error();
 
 static void clearOutputFile(FILE* f, size_t size)
@@ -87,11 +88,13 @@ std::map<size_t, std::string> label_usages;
 
 static void add_label_to_definitions(std::string const& token)
 {
+    fprintf(stderr, "label %s defined at %lX\n", token.c_str(), *current_size);
     label_definitions.insert(std::make_pair(std::string(token), *current_size));
 }
 
 static void add_label_used_at(size_t size, std::string const& token)
 {
+    fprintf(stderr, "label %s used at %lX\n", token.c_str(), *current_size);
     label_usages.insert(std::make_pair(size, std::string(token)));
 }
 
@@ -101,7 +104,10 @@ static void resolve_labels()
         fseek(fout, lbl.first, SEEK_SET);
         auto found = label_definitions.find(lbl.second);
         if(found == label_definitions.end()) error();
-        fwrite(&found->second, sizeof(size_t), 1, fout);
+        unsigned short data = ((found->second >> 8) & 0xFF) | ((found->second & 0xFF) << 8);
+        fwrite(&data, sizeof(unsigned short), 1, fout);
+
+        fprintf(stderr, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
     });
 }
 
@@ -232,13 +238,13 @@ static void for_data()
                         c2 = name[i + 1];
                     }
 
-                    short data = ((unsigned char)c1 << 8) | (unsigned char)c2;
+                    short data = ((unsigned char)c1 << 8) | ((unsigned char)c2 << 8);
                     fwrite(&data, sizeof(short), 1, fout);
                     size--;
                 }
             } else {
                 long num = atol(name.c_str());
-                short data = num;
+                short data = ((num >> 8) & 0xFF) | ((num & 0xFF) << 8);
                 fwrite(&data, sizeof(short), 1, fout);
                 size--;
             }
@@ -297,18 +303,8 @@ static void for_code()
             }
         case 'D':
             switch(token[1]) {
-            case 'I':
-                produce(0x3);
-                continue;
             case 'V':
                 produce(0xE);
-                continue;
-            default: error();
-            }
-        case 'E':
-            switch(token[1]) {
-            case 'I':
-                produce(0x2);
                 continue;
             default: error();
             }
@@ -380,19 +376,48 @@ static void for_code()
         case 'R':
             switch(token[1]) {
             case 'D':
+                if(token[2] != '.') error();
+                produce_reg(0x7, token.c_str());
+                continue;
             case 'I':
+                if(token[2] != '.') error();
+                produce_reg(0x6, token.c_str());
+                continue;
             case 'L':
+                if(token[2] != '.') error();
+                produce_reg(0x2, token.c_str());
+                continue;
             case 'M':
+                if(token[2] != '.') error();
+                produce_reg(0x1, token.c_str());
+                continue;
             case 'P':
+                if(token[2] != '.') error();
+                produce_reg(0x4, token.c_str());
+                continue;
             case 'R':
+                if(token[2] != '.') error();
+                produce_reg(0x3, token.c_str());
+                continue;
+            case 'S':
+                produce(0x2);
+                continue;
             case 'T':
+                produce(0x7);
+                continue;
             default: error();
             }
         case 'S':
             switch(token[1]) {
             case 'T':
+                produce(0x9);
+                continue;
             case 'U':
+                produce(0xB);
+                continue;
             case 'V':
+                produce(0x6);
+                continue;
             default: error();
             }
         case 'X':
@@ -437,6 +462,8 @@ static void assemble()
             }
         }
     }
+
+    resolve_labels();
 }
 
 //=============================================================
@@ -464,6 +491,9 @@ int main(int argc, char* argv[])
     fseek(fout, data_pos, SEEK_SET);
 
     assemble();
+
+    fprintf(stderr, "DONE\n");
+    fflush(stderr);
 
     fclose(fin);
     fclose(fout);
