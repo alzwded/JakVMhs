@@ -134,7 +134,13 @@ static void add_label_to_definitions(std::string const& token)
     log(LOG_LABELS, "label %s defined at %lX\n", token.c_str(), *current_size);
     auto labelAlreadyDefined = label_definitions.find(token);
     cassert(labelAlreadyDefined == label_definitions.end());
-    label_definitions.insert(std::make_pair(std::string(token), *current_size));
+    unsigned short pos = 0;
+    if(current_size == &data_pos) {
+        pos = 0xFFFF & ((data_pos - 0x10000) / sizeof(short));
+    } else {
+        pos = 0xFFFF & *current_size;
+    }
+    label_definitions.insert(std::make_pair(std::string(token), pos));
 }
 
 static void add_label_used_at(size_t size, std::string const& token)
