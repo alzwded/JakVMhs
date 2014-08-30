@@ -1,9 +1,8 @@
 .data
 :hellow 7   'hello world!', 0
 :fortytwo   1   42
+:blanks 10  -       ; 10x 0
 :toten  10  1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-;:blanks 10  -  ; TODO
-:blanks 10  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 .code
     PI  :fortytwo       ; @fortytwo
@@ -57,3 +56,5 @@
     JP                  ; }
 :done
     HL                  ; exit
+
+; ending code

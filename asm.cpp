@@ -173,7 +173,7 @@ static void resolve_labels()
         fseek(fout, lbl.first, SEEK_SET);
         fwrite(&data, sizeof(unsigned short), 1, fout);
 
-        log(LOG_LABELS, "resolving %s to %X\n", lbl.second.c_str(), (int)data);
+        log(LOG_LABELS, "resolving %s to %X\n", lbl.second.c_str(), found->second);
     });
 }
 
@@ -300,7 +300,20 @@ static void for_data()
 
         while(size > 0 && !feof(fin)) {
             std::string name = getToken();
-            if(name[0] == '\'') {
+            if(name[0] == '-' && ((name[1] == ',' && name[2] == '\0')
+                        || name[1] == '\0'))
+            {
+                log(LOG_DATAGEN, "D/C found (-), padding %ld words with 0\n", size);
+                unsigned char* buf = (unsigned char*)malloc(size * sizeof(short));
+                memset(buf, 0, size * sizeof(short));
+
+                fwrite(buf, sizeof(short), size, fout);
+                *current_size = ftell(fout);
+
+                free(buf);
+                size = 0;
+
+            } else if(name[0] == '\'') {
                 size_t i = 1;
                 auto pEnd = name.substr(1).rfind('\'');
                 auto closingQuote = pEnd;
