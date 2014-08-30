@@ -103,7 +103,7 @@ static short* open_save_data()
     off_t len = sb.st_size;
     size_t expectedLen = 512u;
     if(len != expectedLen) {
-        logger(LOG_SAVEFILE, "File %s is of unexpected size, truncating and nullifying...\n", rName);
+        logger(LOG_SAVEFILE|LOG_ERR, "File %s is of unexpected size, truncating and nullifying...\n", rName);
         ftruncate(fd, expectedLen);
     }
 
@@ -151,7 +151,7 @@ static void load_image()
     off_t offset = 0;
     size_t length = sb.st_size;
     cassert(length >= 0x30000);
-    if(length > 0x30000) logger(0, "WARNING: image bigger than the expected %ld bytes\n", 0x30000);
+    if(length > 0x30000) logger(LOG_ERR, "WARNING: image bigger than the expected %ld bytes\n", 0x30000);
 
     char* image = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, offset);
 
