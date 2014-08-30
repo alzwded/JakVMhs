@@ -89,6 +89,7 @@ static std::string getToken()
     char tok[128];
     char* p = &tok[0];
     int c;
+    int instring = 0;
     do {
         while(isspace(c = fgetc(fin)))
             ;
@@ -99,29 +100,38 @@ static std::string getToken()
         if(c == ';') tillEol();
         else break;
     } while(1);
-    *p++ = c;
+    ungetc(c, fin);
     do {
+        cassert(p - tok < 128);
         if(feof(fin)) break;
 
         c = fgetc(fin);
 
         if(c == EOF || feof(fin)) break;
+        if(c == '\'') {
+            instring = !instring;
+            log(LOG_TOKENIZER, "in string: %c\n", (instring) ? 'Y' : 'N');
+        }
         if(isspace(c)) {
-            if((p - tok > 0)) break;
-            else continue;
+            if((p - tok > 0) && !instring) break;
+            else goto ccontinue;
         }
         if(c == ',') {
-            if(p - tok > 0 && tok[0] != '\'') {
+            if(p - tok > 0 && !instring) {
                 break;
             } else {
-                continue;
+                goto ccontinue;
             }
         }
         if(c == ';') {
-            tillEol();
-            continue;
+            if((p - tok > 0) && !instring) {
+                break;
+            } else {
+                tillEol();
+                continue;
+            }
         }
-
+ccontinue:
         *p++ = c;
     } while(1);
     *p++ = '\0';
@@ -599,7 +609,7 @@ int main(int argc, char* argv[])
     data_pos = 0x10000;
     fseek(fout, data_pos, SEEK_SET);
 
-    g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
+    //g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
 
     try {
         assemble();

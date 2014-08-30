@@ -36,12 +36,14 @@ static logger_state_t g_logger_state = LS_UNDEFINED;
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
 static char const* g_image = NULL;
+static short* g_save_data = NULL;
 static int g_flags = ~0;
 
 //============================================================
 // internal
 //============================================================
 #define LOG_ERR 0x80000000
+#define LOG_SAVEFILE 0x1
 
 static inline void logger(int flags, char const* fmt, ...)
 {
@@ -77,8 +79,67 @@ static void reset_machine_state()
     machine.regs[IP] = 0;
 }
 
+static short* open_save_data()
+{
+    // determine file name
+    char* rName = (char*)malloc(strlen(g_image) + 4);
+    char* p = strrchr(g_image, '.');
+    if(p) {
+        strncpy(rName, g_image, p - g_image);
+    } else {
+        strcpy(rName, g_image);
+    }
+    (void) strcat(rName, ".sav");
+
+    // does file exist?
+    int fd = open(rName,
+            O_CREAT | O_RDWR,
+            S_IRUSR|S_IWUSR);
+    cassert(fd != -1);
+
+    struct stat sb;
+    cassert(fstat(fd, &sb) == 0);
+
+    off_t len = sb.st_size;
+    size_t expectedLen = 512u;
+    if(len != expectedLen) {
+        logger(LOG_SAVEFILE, "File %s is of unexpected size, truncating and nullifying...\n", rName);
+        ftruncate(fd, expectedLen);
+    }
+
+    // map the save file
+    void* ptr = mmap(
+            NULL,
+            expectedLen,
+            PROT_READ|PROT_WRITE,
+            MAP_SHARED,
+            fd,
+            0);
+    cassert(ptr);
+
+    close(fd);
+
+    return (short*)ptr;
+}
+
+static void dispose_of_save_data(short** p)
+{
+    cassert(p);
+    munmap(*p, 512);
+    *p = NULL;
+}
+
+static short* get_save_data_ptr()
+{
+    if(g_save_data) return g_save_data;
+    return g_save_data = open_save_data();
+}
+
 static void load_image()
 {
+    cassert(g_image);
+    if(g_save_data) dispose_of_save_data(&g_save_data);
+
     logger(0, "Loading %s\n", g_image);
 
     int fd = open(g_image, O_RDONLY);
@@ -195,6 +256,57 @@ static unsigned short* os_deref(unsigned short address)
     return &machine.data[address];
 }
 
+static void os_read_save_word()
+{
+    short save_word_address = pop();
+    cassert(save_word_address >= 0 && save_word_address < 256);
+
+    short* save_data = get_save_data_ptr();
+    cassert(save_data);
+    push(save_data[save_word_address]);
+}
+
+static void os_write_save_word()
+{
+    short save_word_address = pop();
+    short word = pop();
+    cassert(save_word_address >= 0 && save_word_address < 256);
+
+    short* save_data = get_save_data_ptr();
+    cassert(save_data);
+    save_data[save_word_address] = word;
+}
+
+static void os_get_save_data()
+{
+    short save_data_addr = pop();
+    unsigned short howMuch = pop();
+    short mem_addr = pop();
+
+    cassert(save_data_addr >= 0 && save_data_addr < 256);
+    cassert((size_t)mem_addr + (size_t)howMuch < 0x10000);
+    cassert((size_t)save_data_addr + (size_t)howMuch < 256);
+
+    short* save_data = get_save_data_ptr();
+
+    memcpy(&machine.data[mem_addr], &save_data[save_data_addr], howMuch * sizeof(short));
+}
+
+static void os_put_save_data()
+{
+    short save_data_addr = pop();
+    unsigned short howMuch = pop();
+    short mem_addr = pop();
+
+    cassert(mem_addr >= 0 && mem_addr < 256);
+    cassert((size_t)save_data_addr + (size_t)howMuch < 0x10000);
+    cassert((size_t)mem_addr + (size_t)howMuch < 256);
+
+    short* save_data = get_save_data_ptr();
+
+    memcpy(&save_data[save_data_addr], &machine.data[mem_addr], howMuch * sizeof(short));
+}
+
 static vm_utilities_t os_get_vm_utilities()
 {
     vm_utilities_t utils;
@@ -284,6 +396,18 @@ static void interrupt()
         break;
     case 8:
         error("NOT IMPLEMENTED: deref_short_name");
+        break;
+    case 10:
+        os_read_save_word();
+        break;
+    case 11:
+        os_write_save_word();
+        break;
+    case 12:
+        os_get_save_data();
+        break;
+    case 13:
+        os_put_save_data();
         break;
     case 20:
         os_callextroutine();

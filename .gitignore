@@ -27,6 +27,7 @@
 
 # compiled files
 *.hss
+*.sav
 *.out
 *.bin
 log
