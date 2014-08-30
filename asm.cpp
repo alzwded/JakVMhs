@@ -92,6 +92,10 @@ static std::string getToken()
     do {
         while(isspace(c = fgetc(fin)))
             ;
+        if(c == EOF || feof(fin)) {
+            tok[0] = '\0';
+            return tok;
+        }
         if(c == ';') tillEol();
         else break;
     } while(1);
