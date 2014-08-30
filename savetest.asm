@@ -1,8 +1,6 @@
 .data
 :hellow 7   'hello world!', 0
 :fortytwo   1   42
-:blanks 10  -       ; 10x 0
-:toten  10  1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 
 .code
     PI  :fortytwo       ; @fortytwo
@@ -17,6 +15,11 @@
     PI  13              ; put_save_data(@1, 7, @hellow)
     IN
 
+.data               ; .data and .code can be intertwined
+:blanks 10  -       ; 10x 0
+:toten  10  1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+.code
     PI  :toten          ; put_save_data(@8, 10, @toten)
     PI  10
     PI  8

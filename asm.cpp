@@ -273,10 +273,13 @@ static void produce_reg(unsigned char code, char const* token)
 
 #define switch_mode(X) do{ \
     if(X.compare(".code") == 0) { \
+        log(LOG_TOKENIZER, "switching to .code\n"); \
         mode = CODE; \
     } else if(X.compare(".data") == 0) { \
+        log(LOG_TOKENIZER, "switching to .data\n"); \
         mode = DATA; \
     } else { \
+        log(LOG_TOKENIZER, "unknown directive %s\n", X.c_str()); \
         mode = ERROR; \
     } \
 }while(0)
@@ -379,7 +382,7 @@ static void for_code()
         switch(token[0]) {
         case '.':
             switch_mode(token);
-            break;
+            return;
         case ':':
             add_label_to_definitions(token);
             continue;
@@ -622,7 +625,7 @@ int main(int argc, char* argv[])
     data_pos = 0x10000;
     fseek(fout, data_pos, SEEK_SET);
 
-    //g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
+    g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
 
     try {
         assemble();
