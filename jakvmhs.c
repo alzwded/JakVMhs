@@ -27,13 +27,6 @@ struct {
     short(* csp)[RLAST];
 } machine;
 
-typedef enum {
-    LS_UNDEFINED = 0,
-    LS_FIRST,
-    LS_SECOND
-} logger_state_t;
-static logger_state_t g_logger_state = LS_UNDEFINED;
-
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
 static char const* g_image = NULL;
@@ -43,6 +36,13 @@ static int g_flags = ~0;
 //============================================================
 // internal
 //============================================================
+typedef enum {
+    LS_UNDEFINED = 0,
+    LS_FIRST,
+    LS_SECOND
+} logger_state_t;
+static logger_state_t g_logger_state = LS_UNDEFINED;
+
 #define LOG_ERR 0x80000000
 #define LOG_SAVEFILE 0x1
 
@@ -70,6 +70,10 @@ static void error(char const* msg)
     fflush(stderr);
     abort();
 }
+
+//-------------------------------------------------------------
+// loaders
+//-------------------------------------------------------------
 
 static void reset_machine_state()
 {
@@ -168,6 +172,10 @@ static void load_image()
     close(fd);
 }
 
+//-------------------------------------------------------------
+// stack management
+//-------------------------------------------------------------
+
 static void push(short x)
 {
     static int n = 0;
@@ -186,6 +194,10 @@ static short pop()
 //=============================================================
 // OS
 //=============================================================
+
+//-------------------------------------------------------------
+// OS.SN
+//-------------------------------------------------------------
 
 static char* os_deref_string(unsigned short pStr)
 {
@@ -221,6 +233,52 @@ static char const* os_from_short_name(unsigned short sName)
 {
     return SN_get(sName);
 }
+
+static void os_assign_short_name()
+{
+    unsigned short pStr = pop();
+
+    char* rets = os_deref_string(pStr);
+
+    push(SN_assign(rets));
+    free(rets);
+}
+
+static void os_free_short_name()
+{
+    unsigned short w = pop();
+    SN_dispose(w);
+}
+
+static void os_deref_short_name()
+{
+    unsigned short w = pop();
+    unsigned short addr = pop();
+
+    char const* str = SN_get(w);
+    cassert(str);
+
+    // encode string
+    size_t len = strlen(str);
+    char const* pEnd = str + len;
+    len += len % 2;
+    short* local = (short*)malloc(sizeof(char) * len);
+
+    size_t i;
+    for(i = 0; i < len / 2; ++i) {
+        char c1, c2;
+        if(str < pEnd) c1 = *str++;
+        else c1 = 0;
+        if(str < pEnd) c2 = *str++;
+        else c2 = 0;
+        unsigned short data = (c1 << 8) | c2;
+        machine.data[addr] = data;
+    }
+}
+
+//-------------------------------------------------------------
+// OS.log
+//-------------------------------------------------------------
 
 static void os_logword()
 {
@@ -276,15 +334,9 @@ static void os_logstring()
     }
 }
 
-static void os_exec_vm_code(unsigned short address)
-{
-    error("NOT IMPLEMENTED os_exec_vm_code");
-}
-
-static unsigned short* os_deref(unsigned short address)
-{
-    return &machine.data[address];
-}
+//-------------------------------------------------------------
+// OS.persistent
+//-------------------------------------------------------------
 
 static void os_read_save_word()
 {
@@ -335,6 +387,20 @@ static void os_put_save_data()
     short* save_data = get_save_data_ptr();
 
     memcpy(&save_data[save_data_addr], &machine.data[mem_addr], howMuch * sizeof(short));
+}
+
+//-------------------------------------------------------------
+// OS.interop
+//-------------------------------------------------------------
+
+static unsigned short* os_deref(unsigned short address)
+{
+    return &machine.data[address];
+}
+
+static void os_exec_vm_code(unsigned short address)
+{
+    error("NOT IMPLEMENTED os_exec_vm_code");
 }
 
 static vm_utilities_t os_get_vm_utilities()
@@ -395,51 +461,60 @@ static void os_callextroutine()
     loadedUtilities[found].utilities.utilities[wFunc](os_get_vm_utilities(), &machine.regs);
 }
 
-static void os_assign_short_name()
-{
-    unsigned short pStr = pop();
-
-    char* rets = os_deref_string(pStr);
-
-    push(SN_assign(rets));
-    free(rets);
-}
-
-static void os_free_short_name()
-{
-    unsigned short w = pop();
-    SN_dispose(w);
-}
-
-static void os_deref_short_name()
-{
-    unsigned short w = pop();
-    unsigned short addr = pop();
-
-    char const* str = SN_get(w);
-    cassert(str);
-
-    // encode string
-    size_t len = strlen(str);
-    char const* pEnd = str + len;
-    len += len % 2;
-    short* local = (short*)malloc(sizeof(char) * len);
-
-    size_t i;
-    for(i = 0; i < len / 2; ++i) {
-        char c1, c2;
-        if(str < pEnd) c1 = *str++;
-        else c1 = 0;
-        if(str < pEnd) c2 = *str++;
-        else c2 = 0;
-        unsigned short data = (c1 << 8) | c2;
-        machine.data[addr] = data;
-    }
-}
-
 //============================================================
 // operations
 //============================================================
+
+static void add()
+{
+    short b = pop();
+    short a = pop();
+    push(a + b);
+}
+
+static void and()
+{
+    unsigned short b = pop();
+    unsigned short a = pop();
+    push(a & b);
+}
+
+static void compare()
+{
+    short b = pop();
+    short a = pop();
+
+    push(b > a);
+}
+
+static void compare_unsigned()
+{
+    unsigned short b = pop();
+    unsigned short a = pop();
+
+    push(b > a);
+}
+
+static void compare_signed()
+{
+    short b = pop();
+    short a = pop();
+
+    push(b > a);
+}
+
+static void div_op()
+{
+    short b = pop();
+    short a = pop();
+    push(a / b);
+}
+
+static void halt_this_thing()
+{
+    printf("\n");
+    exit(0);
+}
 
 static void interrupt()
 {
@@ -492,51 +567,6 @@ static void interrupt()
     }
 }
 
-static void add()
-{
-    short b = pop();
-    short a = pop();
-    push(a + b);
-}
-
-static void and()
-{
-    unsigned short b = pop();
-    unsigned short a = pop();
-    push(a & b);
-}
-
-static void compare()
-{
-    short b = pop();
-    short a = pop();
-
-    push(b > a);
-}
-
-static void compare_unsigned()
-{
-    unsigned short b = pop();
-    unsigned short a = pop();
-
-    push(b > a);
-}
-
-static void compare_signed()
-{
-    short b = pop();
-    short a = pop();
-
-    push(b > a);
-}
-
-static void div_op()
-{
-    short b = pop();
-    short a = pop();
-    push(a / b);
-}
-
 static void ior()
 {
     unsigned short b = pop();
@@ -564,16 +594,16 @@ static void load()
     push(machine.data[addr]);
 }
 
-static void mul()
-{
-    push(pop() * pop());
-}
-
 static void mod()
 {
     short b = pop();
     short a = pop();
     push(a % b);
+}
+
+static void mul()
+{
+    push(pop() * pop());
 }
 
 static void neg()
@@ -700,12 +730,6 @@ static void xor()
     push(a ^ b);
 }
 
-static void halt_this_thing()
-{
-    printf("\n");
-    exit(0);
-}
-
 //============================================================
 // decoder
 //============================================================
@@ -823,6 +847,10 @@ static void decode()
     }
 }
 
+//============================================================
+// main
+//============================================================
+
 static void exec()
 {
     while(1) {
@@ -830,10 +858,6 @@ static void exec()
         machine.regs[IP]++;
     }
 }
-
-//============================================================
-// main
-//============================================================
 
 int main(int argc, char* argv[])
 {
