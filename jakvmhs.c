@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "jakvmhs.h"
+#include "sn.h"
 
 struct {
 #define SP 31
@@ -363,6 +364,14 @@ static void os_callextroutine()
     }
     // exec proc
     loadedUtilities[found].utilities.utilities[wFunc](os_get_vm_utilities(), &machine.regs);
+}
+
+static void os_assign_short_name()
+{
+    short pStr = pop();
+    // decode string
+    char* decoded;
+    push(SN_assign(decoded));
 }
 
 //============================================================
