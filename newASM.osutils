@@ -19,8 +19,8 @@ Utilities provided to the VM:
         reads a number from stdin
     7   (w) read_string
         reads a string from stdin and returns a new short name
-    8   (w*) deref_short_name
-        dereferences a short name
+    8   deref_short_name(wShortName, wAddress)
+        dereferences a short name (wShortName) @wAddress
         pushes the words onto the stack in reverse order, ending with length
     10  (w) read_save_word(w)
         read one word from the save data (256 words)

@@ -12,9 +12,9 @@ namespace {
 
 class SN
 {
-    std::map<short, std::string> map_;
-    std::list<std::pair<short, short> > holes_;
-    short max_;
+    std::map<unsigned short, std::string> map_;
+    std::list<std::pair<unsigned short, unsigned short> > holes_;
+    unsigned short max_;
 public:
     SN()
     : map_()
@@ -22,13 +22,13 @@ public:
     , max_(0)
     {}
 
-    short Add(std::string const& s)
+    unsigned short Add(std::string const& s)
     {
         auto inserted = map_.insert(std::make_pair(GetNewKey(), s));
         return inserted.first->first;
     }
 
-    std::string const& Get(short w)
+    std::string const& Get(unsigned short w)
     {
         static std::string blank("");
         auto found = map_.find(w);
@@ -36,7 +36,7 @@ public:
         return found->second;
     }
 
-    void Erase(short w)
+    void Erase(unsigned short w)
     {
         auto found = map_.find(w);
         if(found == map_.end()) return;
@@ -53,10 +53,10 @@ public:
     }
 
 private:
-    short GetNewKey()
+    unsigned short GetNewKey()
     {
-        short num = 0;
-        short* pnum = NULL;
+        unsigned short num = 0;
+        unsigned short* pnum = NULL;
         if(holes_.size()) {
             auto p = holes_.begin();
             num = (*p).first;
@@ -74,7 +74,7 @@ private:
         }
     }
 
-    void DisposeOfKey(short w)
+    void DisposeOfKey(unsigned short w)
     {
         if(w == max_ - 1) {
             --max_;
@@ -118,19 +118,19 @@ private:
 
 static SN SNMgr;
 
-short SN_assign(char const* s)
+unsigned short SN_assign(char const* s)
 {
     std::string str(s);
     return SNMgr.Add(s);
 }
 
-char const* SN_get(short w)
+char const* SN_get(unsigned short w)
 {
     std::string const& got = SNMgr.Get(w);
     return got.c_str();
 }
 
-void SN_dispose(short w)
+void SN_dispose(unsigned short w)
 {
     SNMgr.Erase(w);
 }

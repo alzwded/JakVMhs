@@ -73,11 +73,15 @@ static void error(char const* msg)
 
 static void reset_machine_state()
 {
+    // clear stacks
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
     memset(&machine.call_stack[0], 0, 0xFFF * RLAST * sizeof(short));
     machine.regs[SP] = 0;
     machine.csp = &machine.call_stack[0];
+    // start at 0x0
     machine.regs[IP] = 0;
+    // clear short name manager
+    SN_reset();
 }
 
 static short* open_save_data()
@@ -183,14 +187,39 @@ static short pop()
 // OS
 //=============================================================
 
-static char* os_deref_string(unsigned short w)
+static char* os_deref_string(unsigned short pStr)
 {
-    error("os_deref_string NOT IMPLEMENTED");
+    size_t start = pStr;
+    size_t end;
+    for(end = start; ; ++end) {
+        if((machine.data[end] & 0xFF00 == 0)
+                | (machine.data[end] & 0xFF == 0))
+        {
+            break;
+        }
+    }
+
+    size_t count = start, len = 0;
+    char* p = (char*)&machine.data[start];
+    char* decoded = (char*)malloc(sizeof(char) * sizeof(short) * (start - end + 1));
+    while(1) {
+        unsigned short crnt = machine.data[count];
+        decoded[len++] = (crnt & 0xFF) >> 8;
+        if(!decoded[len - 1]) break;
+        decoded[len++] = (crnt & 0xFF);
+        if(!decoded[len - 1]) break;
+        ++count;
+        cassert(count < 0x10000);
+    }
+
+    char* rets = (char*)malloc(sizeof(char) * strlen(decoded));
+    strcpy(rets, decoded);
+    free(decoded);
 }
 
-static char const* os_from_short_name(unsigned short w)
+static char const* os_from_short_name(unsigned short sName)
 {
-    error("os_from_short_name NOT IMPLEMENTED");
+    return SN_get(sName);
 }
 
 static void os_logword()
@@ -368,10 +397,44 @@ static void os_callextroutine()
 
 static void os_assign_short_name()
 {
-    short pStr = pop();
-    // decode string
-    char* decoded;
-    push(SN_assign(decoded));
+    unsigned short pStr = pop();
+
+    char* rets = os_deref_string(pStr);
+
+    push(SN_assign(rets));
+    free(rets);
+}
+
+static void os_free_short_name()
+{
+    unsigned short w = pop();
+    SN_dispose(w);
+}
+
+static void os_deref_short_name()
+{
+    unsigned short w = pop();
+    unsigned short addr = pop();
+
+    char const* str = SN_get(w);
+    cassert(str);
+
+    // encode string
+    size_t len = strlen(str);
+    char const* pEnd = str + len;
+    len += len % 2;
+    short* local = (short*)malloc(sizeof(char) * len);
+
+    size_t i;
+    for(i = 0; i < len / 2; ++i) {
+        char c1, c2;
+        if(str < pEnd) c1 = *str++;
+        else c1 = 0;
+        if(str < pEnd) c2 = *str++;
+        else c2 = 0;
+        unsigned short data = (c1 << 8) | c2;
+        machine.data[addr] = data;
+    }
 }
 
 //============================================================
@@ -383,10 +446,10 @@ static void interrupt()
     short which = pop();
     switch(which) {
     case 1:
-        error("NOT IMPLEMENTED: assign_short_name");
+        os_assign_short_name();
         break;
     case 2:
-        error("NOT IMPLEMENTED: free_short_name");
+        os_free_short_name();
         break;
     case 3:
         os_logword();
@@ -404,7 +467,7 @@ static void interrupt()
         error("NOT IMPLEMENTED: read_string");
         break;
     case 8:
-        error("NOT IMPLEMENTED: deref_short_name");
+        os_deref_short_name();
         break;
     case 10:
         os_read_save_word();
