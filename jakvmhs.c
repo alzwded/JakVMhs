@@ -466,9 +466,16 @@ static void os_callextroutine()
     // load lib if not found || error
     if(found == -1) {
         char actualLibName[256];
-        sprintf(actualLibName, "./lib%s.so", libname);
+        void* dll = NULL;
 
-        void* dll = dlopen(actualLibName, RTLD_LAZY);
+        // #1 attempt LD_LIBRARY_PATH
+        sprintf(actualLibName, "lib%s.so", libname);
+        dll = dlopen(actualLibName, RTLD_LAZY);
+        if(!dll) {
+            // #2 attempt current directory
+            sprintf(actualLibName, "./lib%s.so", libname);
+            dll = dlopen(actualLibName, RTLD_LAZY);
+        }
 
         if(!dll) error("failed to load library");
         utility_lib_t (*initialize)(void);
