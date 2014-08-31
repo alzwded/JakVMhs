@@ -1,5 +1,6 @@
 .data
 :str    6   'testutils', 0
+:msg    4   '2^3 = ', 0
 
 .code
 ; call printnum from testutils
@@ -18,6 +19,9 @@
     IN
 
 ; display result
+    PI  :msg
+    PI  5
+    IN
     PI  3
     IN
 
