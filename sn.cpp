@@ -30,8 +30,9 @@ public:
 
     std::string const& Get(short w)
     {
+        static std::string blank("");
         auto found = map_.find(w);
-        if(found == map_.end()) return NULL;
+        if(found == map_.end()) return blank;
         return found->second;
     }
 
@@ -57,11 +58,11 @@ private:
         short num = 0;
         short* pnum = NULL;
         if(holes_.size()) {
-            auto p = holes_.front();
-            num = p.first;
+            auto p = holes_.begin();
+            num = (*p).first;
             pnum = &num;
-            ++p.first;
-            if(p.first == p.second) {
+            ++(*p).first;
+            if(p->first == p->second) {
                 holes_.erase(holes_.begin());
             }
         }
@@ -82,12 +83,12 @@ private:
 
         bool inserted = false;
         std::for_each(holes_.begin(), holes_.end(), [&](decltype(holes_)::value_type& o){
-                if(o.first == w - 1) {
-                    inserted = true;
-                    o.first--;
-                } else if(w == o.second) {
+                if(w == o.second) {
                     inserted = true;
                     o.second++;
+                } else if(o.first - 1 == w) {
+                    inserted = true;
+                    o.first--;
                 }
             });
 
@@ -99,13 +100,12 @@ private:
             holes_.sort([&](decltype(holes_)::value_type const& a, decltype(holes_)::value_type const& b){
                     return a.first < b.first;
                 });
-            return;
         }
         
         for(auto i = holes_.begin(); i != holes_.end();) {
             auto prev = i++;
             if(i == holes_.end()) break;
-            if(prev->second == i->first) {
+            if(prev->second >= i->first) {
                 prev->second = i->second;
                 holes_.erase(i);
                 i = prev;
