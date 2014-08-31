@@ -212,8 +212,8 @@ static char* os_deref_string(unsigned short pStr)
     size_t start = pStr;
     size_t end;
     for(end = start; ; ++end) {
-        if((machine.data[end] & 0xFF00 == 0)
-                | (machine.data[end] & 0xFF == 0))
+        if((machine.data[end] & 0xFF00) == 0
+        || (machine.data[end] & 0xFF) == 0)
         {
             break;
         }
@@ -221,10 +221,10 @@ static char* os_deref_string(unsigned short pStr)
 
     size_t count = start, len = 0;
     char* p = (char*)&machine.data[start];
-    char* decoded = (char*)malloc(sizeof(char) * sizeof(short) * (start - end + 1));
+    char* decoded = (char*)malloc(sizeof(char) * sizeof(short) * (end - start + 1));
     while(1) {
         unsigned short crnt = machine.data[count];
-        decoded[len++] = (crnt & 0xFF) >> 8;
+        decoded[len++] = (crnt & 0xFF00) >> 8;
         if(!decoded[len - 1]) break;
         decoded[len++] = (crnt & 0xFF);
         if(!decoded[len - 1]) break;
@@ -235,6 +235,8 @@ static char* os_deref_string(unsigned short pStr)
     char* rets = (char*)malloc(sizeof(char) * strlen(decoded));
     strcpy(rets, decoded);
     free(decoded);
+
+    return rets;
 }
 
 // wrapper around SN_get (C strings)
@@ -464,7 +466,7 @@ static void os_callextroutine()
     // load lib if not found || error
     if(found == -1) {
         char actualLibName[256];
-        sprintf(actualLibName, "lib%s.so", libname);
+        sprintf(actualLibName, "./lib%s.so", libname);
 
         void* dll = dlopen(actualLibName, RTLD_LAZY);
 

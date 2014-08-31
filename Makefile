@@ -14,5 +14,8 @@ sn.o: sn.cpp sn.h
 sn_test.bin: testsn.cpp sn.cpp sn.h
 	g++ --std=gnu++11 -g testsn.cpp -o sn_test.bin
 
+libtestutils.so: jakvmhs.h testutils.c
+	gcc -g -o libtestutils.so -shared -fPIC testutils.c
+
 clean:
-	rm -f *.bin
+	rm -f *.bin *.so
