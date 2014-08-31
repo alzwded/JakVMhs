@@ -759,7 +759,7 @@ static void xor()
 
 static void further_decode()
 {
-    unsigned char addr = machine.regs[IP];
+    unsigned short addr = machine.regs[IP];
     unsigned char opcode = machine.code[addr];
     switch(opcode) {
         default:
@@ -839,7 +839,7 @@ static void further_decode()
 
 static void decode()
 {
-    unsigned char addr = machine.regs[IP];
+    unsigned short addr = machine.regs[IP];
     unsigned char opcode = machine.code[addr];
     switch((opcode >> 5) & 0x7) {
         default:
