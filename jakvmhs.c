@@ -29,9 +29,8 @@ struct {
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
-static char const* g_image = NULL;
-static short* g_save_data = NULL;
-static int g_flags = ~0;
+static char const* g_image = NULL; // executable image filename
+static short* g_save_data = NULL; // pointer to mmap'd region
 
 //============================================================
 // internal
@@ -43,8 +42,9 @@ typedef enum {
 } logger_state_t;
 static logger_state_t g_logger_state = LS_UNDEFINED;
 
-#define LOG_ERR 0x80000000
-#define LOG_SAVEFILE 0x1
+#define LOG_ERR 0x80000000  // log to stderr instead of stdout
+#define LOG_SAVEFILE 0x1    // enable logging SAVEFILE related msgs
+static int g_flags = ~0; // logger flags
 
 static inline void logger(int flags, char const* fmt, ...)
 {
@@ -75,6 +75,7 @@ static void error(char const* msg)
 // loaders
 //-------------------------------------------------------------
 
+// execute reset action
 static void reset_machine_state()
 {
     // clear stacks
@@ -88,6 +89,8 @@ static void reset_machine_state()
     SN_reset();
 }
 
+// loads or creates the persistent file and mmaps it into g_save_data
+// the filename is essentially [csh] g_image:r.sav
 static short* open_save_data()
 {
     // determine file name
@@ -131,6 +134,7 @@ static short* open_save_data()
     return (short*)ptr;
 }
 
+// release mmap'd region
 static void dispose_of_save_data(short** p)
 {
     cassert(p);
@@ -138,12 +142,14 @@ static void dispose_of_save_data(short** p)
     *p = NULL;
 }
 
+// get the pointer to the mmap'd region of the persistent file
 static short* get_save_data_ptr()
 {
     if(g_save_data) return g_save_data;
     return g_save_data = open_save_data();
 }
 
+// load the executable image
 static void load_image()
 {
     cassert(g_image);
@@ -199,6 +205,8 @@ static short pop()
 // OS.SN
 //-------------------------------------------------------------
 
+// dereference an internal string as a C string
+// must be free'd
 static char* os_deref_string(unsigned short pStr)
 {
     size_t start = pStr;
@@ -229,11 +237,13 @@ static char* os_deref_string(unsigned short pStr)
     free(decoded);
 }
 
+// wrapper around SN_get (C strings)
 static char const* os_from_short_name(unsigned short sName)
 {
     return SN_get(sName);
 }
 
+// wrapper around SN_assign
 static void os_assign_short_name()
 {
     unsigned short pStr = pop();
@@ -244,12 +254,14 @@ static void os_assign_short_name()
     free(rets);
 }
 
+// wrapper around SN_dispose
 static void os_free_short_name()
 {
     unsigned short w = pop();
     SN_dispose(w);
 }
 
+// wrapper around SN_get (internal)
 static void os_deref_short_name()
 {
     unsigned short w = pop();
@@ -280,6 +292,7 @@ static void os_deref_short_name()
 // OS.log
 //-------------------------------------------------------------
 
+// log a single word
 static void os_logword()
 {
     short w = pop();
@@ -297,6 +310,7 @@ static void os_logword()
     }
 }
 
+// log a null terminated memory location
 static void os_logstring_p()
 {
     short w = pop();
@@ -316,6 +330,7 @@ static void os_logstring_p()
     free(s);
 }
 
+// log an SN'd string
 static void os_logstring()
 {
     short w = pop();
@@ -338,6 +353,7 @@ static void os_logstring()
 // OS.persistent
 //-------------------------------------------------------------
 
+// read a single word from persistent storage
 static void os_read_save_word()
 {
     short save_word_address = pop();
@@ -348,6 +364,7 @@ static void os_read_save_word()
     push(save_data[save_word_address]);
 }
 
+// write a single word from persistent storage
 static void os_write_save_word()
 {
     short save_word_address = pop();
@@ -359,6 +376,7 @@ static void os_write_save_word()
     save_data[save_word_address] = word;
 }
 
+// transfer N words from persistent storage into memory
 static void os_get_save_data()
 {
     short save_data_addr = pop();
@@ -374,6 +392,7 @@ static void os_get_save_data()
     memcpy(&machine.data[mem_addr], &save_data[save_data_addr], howMuch * sizeof(short));
 }
 
+// transfer N words from memory to persistent storage
 static void os_put_save_data()
 {
     short save_data_addr = pop();
@@ -393,16 +412,19 @@ static void os_put_save_data()
 // OS.interop
 //-------------------------------------------------------------
 
+// R/W memory access
 static unsigned short* os_deref(unsigned short address)
 {
     return &machine.data[address];
 }
 
+// called from a utility library to start executing VM code from address
 static void os_exec_vm_code(unsigned short address)
 {
     error("NOT IMPLEMENTED os_exec_vm_code");
 }
 
+// factory method for vm_utilities passed to utility libraries
 static vm_utilities_t os_get_vm_utilities()
 {
     vm_utilities_t utils;
@@ -415,6 +437,7 @@ static vm_utilities_t os_get_vm_utilities()
     return utils;
 }
 
+// call an arbitrary utility routine from an arbitrary utility library
 static void os_callextroutine()
 {
     short wLib = pop();
@@ -507,7 +530,7 @@ static void div_op()
 {
     short b = pop();
     short a = pop();
-    push(a / b);
+    push((b) ? a / b : -32768);
 }
 
 static void halt_this_thing()
