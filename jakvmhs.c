@@ -433,7 +433,6 @@ static vm_utilities_t os_get_vm_utilities()
     utils.pop = &pop;
     utils.push = &push;
     utils.deref_string = &os_deref_string;
-    utils.from_short_name = &os_from_short_name;
     utils.exec_vm_code = &os_exec_vm_code;
     utils.deref = &os_deref;
     return utils;
@@ -444,7 +443,7 @@ static void os_callextroutine()
 {
     short wLib = pop();
     short wFunc = pop();
-    char const* libname = os_from_short_name(wLib);
+    char const* libname = os_deref_string(wLib);
 
     typedef struct {
         char* libname;
@@ -552,17 +551,8 @@ static void interrupt()
 {
     short which = pop();
     switch(which) {
-    case 1:
-        os_assign_short_name();
-        break;
-    case 2:
-        os_free_short_name();
-        break;
     case 3:
         os_logword();
-        break;
-    case 4:
-        os_logstring();
         break;
     case 5:
         os_logstring_p();

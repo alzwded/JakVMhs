@@ -12,8 +12,6 @@ typedef struct {
     unsigned short* (*deref)(unsigned short address);
     /* dereference a string pointer; needs to be free'd */
     char* (*deref_string)(unsigned short address);
-    /* dereference a short name; do not free */
-    char const* (*from_short_name)(unsigned short name);
 } vm_utilities_t;
 
 typedef void (*utility_fn)(vm_utilities_t, short (*regs)[33]);
