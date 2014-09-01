@@ -151,7 +151,7 @@ variable_list : VAR_ID {
                     log("with", $1);
                 }
                 | variable_list "," VAR_ID {
-                    log("and with", $3);
+                    log("with", $3);
                 }
                 ;
 
@@ -254,13 +254,13 @@ regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list
                  | "call" VAR_ID { log("call", $2); }
                  ;
 
-call_expression : "from" STRING regular_call_expression { log("from", $2); }
+call_expression : "from" STRING { log("from", $2); } regular_call_expression
                 | regular_call_expression
                 ;
 
 call_statement : call_expression EOL { logEndStatement(); } ;
 
-expression_list : { log("with", ""); } expression | expression_list "," { log("and with", ""); } expression ;
+expression_list : { log("with", ""); } expression | expression_list "," { log("with", ""); } expression ;
 
 atom : IDENT ;
 
@@ -375,6 +375,8 @@ int main(void)
         L("10: a = a + 1")
         L("  end for")
         L("  a = from \"lib\" call utility")
+        L("  a = from \"lib\" call utility + call f(41 + a[3 * 5 + 2], call g(0)) + from \"lib\" call utility")
+        L("  call f(a[3 + 2])")
         L("return 0")
         L("return")
         L("end sub")
