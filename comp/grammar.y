@@ -36,6 +36,7 @@ typedef void* yyscan_t;
 %token TOKEN_RETURN "return"
 %token TOKEN_NEXT "next"
 %token TOKEN_BREAK "break"
+%token TOKEN_FROM "from"
 %token TOKEN_LPAREN "("
 %token TOKEN_RPAREN ")"
 %token TOKEN_COMMA ","
@@ -143,9 +144,14 @@ break_statement : "break" EOL | "break" JMPLABEL EOL ;
 
 assignment_statement : VAR "=" expression EOL ;
 
-call_expression : "call" VAR_ID "(" expression_list ")"
+regular_call_expression : "call" VAR_ID "(" expression_list ")"
                  | "call" VAR_ID
                  ;
+
+call_expression : "from" STRING regular_call_expression
+                | regular_call_expression
+                ;
+
 call_statement : call_expression EOL ;
 
 expression_list : expression | expression_list "," expression ;
@@ -262,6 +268,7 @@ int main(void)
         L("    next")
         L("10: a = a + 1")
         L("  end for")
+        L("  a = from \"lib\" call utility")
         L("return 0")
         L("return")
         L("end sub")

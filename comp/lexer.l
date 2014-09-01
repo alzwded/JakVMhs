@@ -36,6 +36,7 @@ STRING      L?\"(\\.|[^\\"])*\"
 "return"        { return TOKEN_RETURN; }
 "next"          { return TOKEN_NEXT; }
 "break"         { return TOKEN_BREAK; }
+"from"          { return TOKEN_FROM; }
 "("             { return TOKEN_LPAREN; }
 ")"             { return TOKEN_RPAREN; }
 ","             { return TOKEN_COMMA; }
