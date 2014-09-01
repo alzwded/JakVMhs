@@ -7,9 +7,29 @@ int yyerror(yyscan_t scanner, const char *msg) {
     // Add error handling routine as needed
     printf("%%%% ERROR %s\n", msg);
 }
+
+static size_t indent = 0;
+static void log(char const* msg, std::string const& value)
+{
+    printf("<%s:%s> ", msg, value.c_str());
+}
+static void logEndStatement()
+{
+    printf("\n");
+    for(size_t i = 0; i < indent; ++i) {
+        printf(". ");
+    }
+}
+static void logEnd()
+{
+    printf("<end:program>\n");
+}
 %}
 
 %code requires {
+#include <string>
+#include <sstream>
+#define YYSTYPE std::string
  
 #ifndef YY_TYPEDEF_YY_SCANNER_T
 #define YY_TYPEDEF_YY_SCANNER_T
@@ -18,10 +38,6 @@ typedef void* yyscan_t;
  
 }
 
-%union {
-    int num;
-    char* str;
-}
 
 %output "parser.cpp"
 %defines "parser.hpp"
@@ -89,27 +105,64 @@ typedef void* yyscan_t;
 %left TOKEN_BITNEG
 %left TOKEN_DEREF
 
-%token <num> INTEGER
-%token <string> STRING
-%token <string> VAR_ID
+%token INTEGER
+%token STRING
+%token VAR_ID
 %token EOL
 
+/*%type atom
+%type VAR
+%type IDENT
+%type JMPLABEL*/
 %%
+
+program_for_real : program { logEnd(); } ;
 
 program : program top_level | ;
 
 top_level : shared_clause | sub | EOL ;
 
-shared_clause : "shared" variable_decl_list EOL ;
+shared_clause : "shared" {
+                    log("shared", "");
+                    ++indent;
+                    logEndStatement();
+                } variable_decl_list EOL {
+                    log("end", "shared");
+                    --indent;
+                    logEndStatement();
+                }
+                ;
 
 variable_decl_list : var_decl | variable_decl_list "," var_decl ;
 
-var_decl : VAR_ID | VAR_ID "=" expression ;
+var_decl : VAR_ID {
+               log("declare", $1);
+               logEndStatement();
+           }
+           | VAR_ID { 
+               log("declare", $1);
+               } "=" expression {
+               log("save to", $1);
+               logEndStatement();
+           }
+           ;
 
-variable_list : VAR_ID | variable_list "," VAR_ID ;
+variable_list : VAR_ID {
+                    log("with", $1);
+                }
+                | variable_list "," VAR_ID {
+                    log("and with", $3);
+                }
+                ;
 
-sub : "sub" IDENT "(" opt_variable_list ")" EOL clause_list "end" "sub" EOL
-      | "sub" IDENT "(" opt_variable_list ")" "end" "sub" EOL
+sub : "sub" IDENT {
+          log("sub", $2);
+      } "(" opt_variable_list ")" EOL {
+          ++indent; logEndStatement();
+      } clause_list "end" "sub" EOL { 
+          log("end", "sub");
+          --indent; logEndStatement();
+      }
       ;
 
 opt_variable_list : | variable_list ;
@@ -118,43 +171,96 @@ clause_list : sub_clauses | clause_list sub_clauses ;
 
 sub_clauses : var_clause | shared_clause | inner_clauses ;
 
-var_clause : "var" variable_decl_list EOL ;
+var_clause : "var" { log("var", ""); ++indent; logEndStatement(); } variable_decl_list EOL { log("end", "var"); --indent; logEndStatement(); } ;
 
 inner_clause_list : inner_clauses | inner_clause_list inner_clauses ;
 
 inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | label_decl ;
 
-label_decl : INTEGER ":" | VAR_ID ":" ;
+label_decl : INTEGER ":" {
+                 log("label", $1);
+                 //logEndStatement();
+             }
+             | VAR_ID ":" { 
+                 log("label", $1);
+                 //logEndStatement();
+             }
+             ;
 
 empty_statement : EOL ;
 
-if_statement : "if" "(" expression ")" JMPLABEL "," JMPLABEL EOL ;
+if_statement : "if" {
+                   log("if", "");
+                   ++indent;
+                   logEndStatement();
+               } "(" expression ")" {
+                   logEndStatement();
+               } JMPLABEL "," JMPLABEL EOL {
+                   log("true", $7);
+                   logEndStatement();
+                   log("false", $9);
+                   --indent;
+                   logEndStatement();
+               }
+               ;
 
-loop_statement : "loop" EOL inner_clause_list "end" "loop" EOL
-                 | "loop" "(" expression ")" EOL inner_clause_list "end" "loop" EOL
+loop_statement : "loop" EOL { 
+                     log("loop", "infinite");
+                     ++indent; logEndStatement();
+                 } inner_clause_list "end" "loop" EOL {
+                     log("end", "loop");
+                     --indent; logEndStatement();
+                 }
+                 | "loop" {
+                     log("loop", "with");
+                 } "(" expression ")" EOL {
+                     ++indent; logEndStatement();
+                 } inner_clause_list "end" "loop" EOL {
+                     log("end", "loop");
+                     --indent; logEndStatement();
+                 }
                  ;
 
-for_statement : "for" IDENT "=" IDENT "," IDENT EOL inner_clause_list "end" "for" EOL ;
-
-next_statement : "next" EOL | "next" JMPLABEL EOL ;
-
-return_statement : "return" EOL | "return" expression EOL ;
-
-break_statement : "break" EOL | "break" JMPLABEL EOL ;
-
-assignment_statement : VAR "=" expression EOL ;
-
-regular_call_expression : "call" VAR_ID "(" expression_list ")"
-                 | "call" VAR_ID
+for_statement : "for" IDENT "=" IDENT "," IDENT EOL {
+                     log("for", $2);
+                     log("start", $4);
+                     log("end", $6);
+                     ++indent; logEndStatement();
+                 } inner_clause_list "end" "for" EOL {
+                     log("end", "for");
+                     --indent; logEndStatement();
+                 }
                  ;
 
-call_expression : "from" STRING regular_call_expression
+next_statement : "next" EOL { log("next", ""); logEndStatement(); }
+               | "next" JMPLABEL EOL { log("next", $2); logEndStatement(); }
+               ;
+
+return_statement : "return" EOL { log("return", ""); logEndStatement(); }
+                 | "return" expression EOL { log("return", ""); logEndStatement(); }
+                 ;
+
+break_statement : "break" EOL { log("break", ""); logEndStatement(); }
+                | "break" JMPLABEL EOL { log("break", $2); logEndStatement(); }
+                ;
+
+assignment_statement : VAR "=" expression EOL {
+                           log("save to", $1);
+                           logEndStatement();
+                       }
+                       ;
+
+regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list ")"
+                 | "call" VAR_ID { log("call", $2); }
+                 ;
+
+call_expression : "from" STRING regular_call_expression { log("from", $2); }
                 | regular_call_expression
                 ;
 
-call_statement : call_expression EOL ;
+call_statement : call_expression EOL { logEndStatement(); } ;
 
-expression_list : expression | expression_list "," expression ;
+expression_list : { log("with", ""); } expression | expression_list "," { log("and with", ""); } expression ;
 
 atom : IDENT ;
 
@@ -163,33 +269,32 @@ atom : IDENT ;
    don't handle operator precedence, because I can use ()'s */
 expression : expression1 | "(" expression ")" ;
 expression1 : call_expression | numeric_expression ;
-numeric_expression   : expression TOKEN_PLUS expression
-                     | expression TOKEN_MINUS expression
-                     | expression TOKEN_STAR expression
-                     | expression TOKEN_SLASH expression
-                     | expression TOKEN_PERCENT expression
-                     | TOKEN_MINUS expression
-                     | expression TOKEN_EQUALS expression
-                     | expression TOKEN_AND expression
-                     | expression TOKEN_OR expression
-                     | expression TOKEN_XOR expression
-                     | expression TOKEN_BITAND expression
-                     | expression TOKEN_BITOR expression
-                     | expression TOKEN_BITXOR expression
-                     | expression TOKEN_LTE expression
-                     | expression TOKEN_GTE expression
-                     | expression TOKEN_LT expression
-                     | expression TOKEN_GT expression
-                     | TOKEN_BITNEG expression
-                     | TOKEN_NOT expression
-                     | TOKEN_DEREF VAR
-                     | atom
+numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); }
+                     | expression TOKEN_MINUS expression { log("-", ""); }
+                     | expression TOKEN_STAR expression { log("*", ""); }
+                     | expression TOKEN_SLASH expression { log("/", ""); }
+                     | expression TOKEN_PERCENT expression { log("%", ""); }
+                     | TOKEN_MINUS expression { log("-", "unary"); }
+                     | expression TOKEN_EQUALS expression { log("==", ""); }
+                     | expression TOKEN_AND expression { log("&&", ""); }
+                     | expression TOKEN_OR expression { log("||", ""); }
+                     | expression TOKEN_XOR expression { log("^^", ""); }
+                     | expression TOKEN_BITAND expression { log("&", ""); }
+                     | expression TOKEN_BITOR expression { log("|", ""); }
+                     | expression TOKEN_BITXOR expression { log("^", ""); }
+                     | expression TOKEN_LTE expression { log("<=", ""); }
+                     | expression TOKEN_GTE expression { log(">=", ""); }
+                     | expression TOKEN_LT expression { log("<", ""); }
+                     | expression TOKEN_GT expression { log(">", ""); }
+                     | TOKEN_BITNEG expression { log("~", ""); }
+                     | TOKEN_NOT expression { log("!", ""); }
+                     | TOKEN_DEREF VAR { log("@", $2); }
+                     | atom { log("atom", $1); }
                      ;
 
-IDENT : INTEGER | STRING | VAR ;
-JMPLABEL : TOKEN_MINUS | IDENT ;
-/*VAR_ID : "[a-zA-Z_][a-zA-Z_0-9]*" ;*/
-VAR : VAR_ID | VAR_ID "[" expression "]" ;
+IDENT : INTEGER { $$ = $1; } | STRING { $$ = $1; } | VAR { $$ = $1; } ;
+JMPLABEL : TOKEN_MINUS { $$.assign("-"); } | IDENT { $$ = $1; } ;
+VAR : VAR_ID { $$ = $1; } | VAR_ID "[" expression "]" { $$ = std::string("*") + $1; } ;
 
 %%
 
@@ -259,6 +364,7 @@ int main(void)
         L("  c = a")
         //L("       ")
         L("  b = (c + a) * b")
+        L("  b = (c + a) * (b + 1)")
         L("  c = @b")
         L("  c = call f(a, b)")
         L("  call f")

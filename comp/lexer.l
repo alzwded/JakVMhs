@@ -67,11 +67,11 @@ STRING      L?\"(\\.|[^\\"])*\"
 "^"             { return TOKEN_BITXOR; }
 [@]             { return TOKEN_DEREF; }
 [:]             { return TOKEN_COLON; }
-{OCTNUMBER}     { sscanf(yytext, "%d", &yylval->num); return INTEGER; }
-{HEXNUMBER}     { sscanf(yytext, "%d", &yylval->num); return INTEGER; }
-{NUMBER}        { sscanf(yytext, "%d", &yylval->num); return INTEGER; }
-{VAR_ID}        { yylval->str = (char*)malloc(strlen(yytext)); strcpy(yylval->str, yytext); return VAR_ID; }
-{STRING}        { yylval->str = (char*)malloc(strlen(yytext)); strcpy(yylval->str, yytext); return STRING; }
+{OCTNUMBER}     { int tempx; sscanf(yytext, "%d", &tempx); std::stringstream ss; ss << tempx; *yylval = ss.str(); return INTEGER; }
+{HEXNUMBER}     { int tempx; sscanf(yytext, "%d", &tempx); std::stringstream ss; ss << tempx; *yylval = ss.str(); return INTEGER; }
+{NUMBER}        { int tempx; sscanf(yytext, "%d", &tempx); std::stringstream ss; ss << tempx; *yylval = ss.str(); return INTEGER; }
+{VAR_ID}        { yylval->assign(yytext); return VAR_ID; }
+{STRING}        { yylval->assign(yytext); return STRING; }
  
 .               {  }
  
