@@ -35,3 +35,10 @@ log
 
 # cygwin
 *.stackdump
+
+*.output
+*.dot
+comp/parser.c
+comp/parser.h
+comp/lexer.c
+comp/lexer.h
