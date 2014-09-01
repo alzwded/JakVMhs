@@ -5,13 +5,13 @@
  * To generate the lexical analyzer run: "flex Lexer.l"
  */
  
-#include "parser.h"
+#include "parser.hpp"
  
-#include <stdio.h>
+#include <cstdio>
  
 %}
  
-%option outfile="lexer.c" header-file="lexer.h"
+%option outfile="lexer.cpp" header-file="lexer.hpp"
 %option warn nodefault
  
 %option reentrant noyywrap never-interactive nounistd

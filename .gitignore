@@ -38,7 +38,7 @@ log
 
 *.output
 *.dot
-comp/parser.c
-comp/parser.h
-comp/lexer.c
-comp/lexer.h
+comp/parser.cpp
+comp/parser.hpp
+comp/lexer.cpp
+comp/lexer.hpp

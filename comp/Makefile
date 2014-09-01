@@ -1,11 +1,11 @@
-comp.bin: lexer.c parser.c
-	g++ -g --std=gnu++11 -o comp.bin parser.c lexer.c
+comp.bin: lexer.cpp parser.cpp
+	g++ -g --std=gnu++11 -o comp.bin parser.cpp lexer.cpp
 
-lexer.c: lexer.l
+lexer.cpp: lexer.l
 	flex lexer.l
 
-parser.c: grammar.y
+parser.cpp: grammar.y
 	bison -g -v -d -o log grammar.y
 
 clean:
-	rm -f parser.output parser.c parser.h parser.dot comp.bin
+	rm -f parser.output parser.c* parser.h* parser.dot comp.bin lexer.c* lexer.h*

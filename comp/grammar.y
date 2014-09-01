@@ -1,7 +1,7 @@
 %{
 #define YYDEBUG 1
-#include "parser.h"
-#include "lexer.h"
+#include "parser.hpp"
+#include "lexer.hpp"
  
 int yyerror(yyscan_t scanner, const char *msg) {
     // Add error handling routine as needed
@@ -23,8 +23,8 @@ typedef void* yyscan_t;
     char* str;
 }
 
-%output "parser.c"
-%defines "parser.h"
+%output "parser.cpp"
+%defines "parser.hpp"
 %define api.pure
 %lex-param { yyscan_t scanner }
 %parse-param { yyscan_t scanner }
@@ -187,7 +187,7 @@ VAR : VAR_ID | VAR_ID "[" expression "]" ;
 
 %%
 
-#include <stdio.h>
+#include <cstdio>
  
 int yyparse(yyscan_t scanner);
  
