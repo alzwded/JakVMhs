@@ -1,3 +1,4 @@
+; WARNING not up to date with current assembler/emulator
 .data
 ; name   length(w)   data
 :myVal   7           'hello!', 0     ; utf8ish, but ascii for now
