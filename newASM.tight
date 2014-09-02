@@ -4,7 +4,7 @@ RS      reset                     00000010
 PP      pop                       00000011
 HL      halt                      00000100
 PI      push.immed                00000101
-SV      save                      00000110
+CA      call                      00000110
 RT      return                    00000111
 LD      load                      00001000
 ST      store                     00001001

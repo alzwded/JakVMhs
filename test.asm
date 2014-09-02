@@ -16,8 +16,7 @@
     RP.0                ; with(x)
 :loop
     PI  :print_num      ; call print_num
-    SV                  ; save state
-    JP                  ;
+    CA                  ; call
     
     RD.0                ; x--
     RP.0                ; with(x)
@@ -32,15 +31,14 @@
     JP                  ;
 
 :print_num
-    PR.30               ; test
-    RP.30
+    PR.29               ; test
+    RP.29
     PR.0                ; n (r0) = param1
     PI  11              ; n = 11 - n
     RP.0                ;
     SU                  ; 
     PI  :sysprintint
-    SV                  ; call system routine
-    JP
+    CA                  ; call system routine
     RT                  ; return
 
 :sysprintint

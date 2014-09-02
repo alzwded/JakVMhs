@@ -22,9 +22,9 @@ struct {
     short data[0x10000];
 
     short stack_data[0x10000];
-    short call_stack[0x1000][RLAST]; // 4096 levels
+    short call_stack[4096];
 
-    short(* csp)[RLAST];
+    short* csp;
 } machine;
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
@@ -80,9 +80,9 @@ static void reset_machine_state()
 {
     // clear stacks
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
-    memset(&machine.call_stack[0], 0, 0xFFF * RLAST * sizeof(short));
-    machine.regs[SP] = 0;
+    memset(&machine.call_stack[0], 0, 4096 * sizeof(short));
     machine.csp = &machine.call_stack[0];
+    machine.regs[SP] = 0;
     // start at 0x0
     machine.regs[IP] = 0;
     // clear short name manager
@@ -720,15 +720,17 @@ static void register_sh(size_t reg)
 
 static void return_op()
 {
-    cassert(machine.csp > 0);
-    memcpy(&machine.regs[0], --machine.csp, sizeof(short) * RLAST);
+    cassert(machine.csp - &machine.call_stack[0] > 0);
+    unsigned short addr = *--machine.csp;
+    machine.regs[IP] = addr;
 }
 
-static void save()
+static void call_op()
 {
-    cassert(machine.csp - machine.call_stack < 0xFFF);
-    memcpy(machine.csp++, &machine.regs[0], sizeof(short) * RLAST);
-    machine.csp[-1][IP]++; // increment return address
+    cassert(machine.csp - &machine.call_stack[0] < 4096);
+    unsigned short addr = pop();
+    *machine.csp++ = machine.regs[IP];
+    machine.regs[IP] = addr - 1;
 }
 
 static void store()
@@ -780,7 +782,7 @@ static void further_decode()
             push_immed();
             break;
         case 0x06:
-            save();
+            call_op();
             break;
         case 0x07:
             return_op();

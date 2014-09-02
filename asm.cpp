@@ -400,6 +400,9 @@ static void for_code()
             }
         case 'C':
             switch(token[1]) {
+            case 'A':
+                produce(0x6);
+                continue;
             case 'S':
                 END(token, 2);
                 produce(0x18);
@@ -549,9 +552,6 @@ static void for_code()
                 continue;
             case 'U':
                 produce(0xB);
-                continue;
-            case 'V':
-                produce(0x6);
                 continue;
             default: error("invalid token");
             }
