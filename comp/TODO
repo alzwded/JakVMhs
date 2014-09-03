@@ -1,0 +1,50 @@
+AST
+    SemanticalValidatorVisitor
+        validate the language semantics
+        e.g. all variables declared, labels defined, etc
+        depends: language semantics specification
+    ExpressionOptimizerVisitor
+        replace variables in expressions, discard expressions whose value
+        is not used
+        move all shared initializers to initialization section
+        constant optimization
+    CodeGenerationVisitor
+        generate actual assembly
+        depends: ExpressionOptimizerVisitor, I think
+
+Grammar
+    array allocation (dim)
+        assembly for malloc
+
+    record types or tuples for returning multiple values on the stack
+        or, extend return statement to "return a, b, ..." and assignment
+        statement to "a, b, ... = call multipleResults"
+
+Parser
+    integrate AST building into Parser
+    implement diagnostics
+        "error @line near near #token"
+        semantical errors
+
+Runtime
+    assembly debugger
+        show current instruction
+        inspect stack
+        inspect memory
+        call stack
+    command line arguments for programs?
+
+Toolchain
+    example build:
+        comp.bin -o program.asm main.lan utilities.lan extra.lan
+        asm.bin program.asm handwritten.asm
+        jakvmhs.bin program.hss
+    comp.bin options
+        -o  output file name
+    comp.bin
+        malloc.asm
+        command line arguments passing into Main
+    asm.bin
+        --
+    jakvmhs.bin
+        --set-persistance-file file.sav
