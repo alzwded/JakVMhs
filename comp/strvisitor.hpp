@@ -2,11 +2,20 @@
 #define STRVISITOR_HPP
 
 #include "ast.hpp"
+#include <iostream>
 
 class StringDumpVisitor
 : public Visitor
 {
+    size_t indentation;
+
+    void Indent()
+    {
+        for(size_t i = 0; i < indentation; ++i) std::cout << "  ";
+    }
 public:
+    StringDumpVisitor() : indentation(0) {}
+
     virtual void Visit(Program& node);
     virtual void Visit(If& node);
     virtual void Visit(For& node);

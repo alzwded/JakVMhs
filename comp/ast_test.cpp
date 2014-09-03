@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     sub1->Add(resDecl);
 
     std::shared_ptr<Atom> atomC(new Atom("res"));
-    std::shared_ptr<BinaryOp> subCsumAB(new BinaryOp("sub", atomC, initRes));
+    std::shared_ptr<BinaryOp> subCsumAB(new BinaryOp("substract", atomC, initRes));
     std::shared_ptr<Assignation> incC(new Assignation(atomC, subCsumAB));
     sub1->Add(incC);
 
@@ -51,6 +51,11 @@ int main(int argc, char* argv[])
     loop1->Add(for1); // don't double reference ever in practice...
     loop1->Add(addC1);
     sub1->Add(loop1);
+
+    std::shared_ptr<Call> call1(new Call("testFun", ""));
+    call1->AddParam(atomA);
+    call1->AddParam(addC1);
+    sub1->Add(call1);
 
     std::shared_ptr<Return> ret1(new Return(atom0));
     sub1->Add(ret1);
