@@ -2,6 +2,7 @@
 #include <memory>
 #include <algorithm>
 #include "ast.hpp"
+#include "strvisitor.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -54,7 +55,7 @@ int main(int argc, char* argv[])
     std::shared_ptr<Return> ret1(new Return(atom0));
     sub1->Add(ret1);
 
-    Visitor v;
+    StringDumpVisitor v;
     prg->Accept(&v);
 
     return 0;

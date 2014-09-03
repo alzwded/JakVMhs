@@ -1,8 +1,8 @@
-#include "ast.hpp"
+#include "strvisitor.hpp"
 #include <algorithm>
 #include <iostream>
 
-void Visitor::Visit(Program& node)
+void StringDumpVisitor::Visit(Program& node)
 {
     std::cout << "<program>" << std::endl;
     std::for_each(node.Children().begin(), node.Children().end(), [&](std::shared_ptr<Node> const& n){
@@ -11,14 +11,14 @@ void Visitor::Visit(Program& node)
     std::cout << "</program>" << std::endl;
 }
 
-void Visitor::Visit(If& node)
+void StringDumpVisitor::Visit(If& node)
 {
     std::cout << "<if true='" << node.Truth() << "' false='" << node.Otherwise() << "'>" << std::endl;
     node.Operand()->Accept(this);
     std::cout << "</if>" << std::endl;
 }
 
-void Visitor::Visit(For& node)
+void StringDumpVisitor::Visit(For& node)
 {
     std::cout << "<for name='" << node.VarName() << "'>" << std::endl;
 
@@ -43,7 +43,7 @@ void Visitor::Visit(For& node)
     std::cout << "</for>" << std::endl;
 }
 
-void Visitor::Visit(Loop& node)
+void StringDumpVisitor::Visit(Loop& node)
 {
     std::cout << "<loop>" << std::endl;
     if(node.Condition()) {
@@ -60,7 +60,7 @@ void Visitor::Visit(Loop& node)
     std::cout << "</loop>" << std::endl;
 }
 
-void Visitor::Visit(VarDecl& node)
+void StringDumpVisitor::Visit(VarDecl& node)
 {
     std::cout << "<var name='" << node.Name();
     if(node.Initialization()) {
@@ -72,7 +72,7 @@ void Visitor::Visit(VarDecl& node)
     }
 }
 
-void Visitor::Visit(SharedDecl& node)
+void StringDumpVisitor::Visit(SharedDecl& node)
 {
     std::cout << "<shared name='" << node.Name();
     if(node.Initialization()) {
@@ -84,7 +84,7 @@ void Visitor::Visit(SharedDecl& node)
     }
 }
 
-void Visitor::Visit(Call& node)
+void StringDumpVisitor::Visit(Call& node)
 {
     std::cout << "<call";
     if(!node.From().empty()) std::cout << " from='" << node.From() << "'";
@@ -99,7 +99,7 @@ void Visitor::Visit(Call& node)
     std::cout << "</call>";
 }
 
-void Visitor::Visit(Sub& node)
+void StringDumpVisitor::Visit(Sub& node)
 {
     std::cout << "<sub name='" << node.Name() << "'";
     if(!node.Params().empty()) {
@@ -118,7 +118,7 @@ void Visitor::Visit(Sub& node)
     std::cout << "</sub>" << std::endl;
 }
 
-void Visitor::Visit(BinaryOp& node)
+void StringDumpVisitor::Visit(BinaryOp& node)
 {
     std::cout << "<" << node.Operation() << ">" << std::endl;
     node.Left()->Accept(this);
@@ -126,14 +126,14 @@ void Visitor::Visit(BinaryOp& node)
     std::cout << "</" << node.Operation() << ">" << std::endl;
 }
 
-void Visitor::Visit(UnaryOp& node)
+void StringDumpVisitor::Visit(UnaryOp& node)
 {
     std::cout << "<" << node.Operation() << ">" << std::endl;
     node.Operand()->Accept(this);
     std::cout << "</" << node.Operation() << ">" << std::endl;
 }
 
-void Visitor::Visit(Assignation& node)
+void StringDumpVisitor::Visit(Assignation& node)
 {
     std::cout << "<assign>" << std::endl << "<target>" << std::endl;
     node.Name()->Accept(this);
@@ -144,7 +144,7 @@ void Visitor::Visit(Assignation& node)
     std::cout << "</assign>" << std::endl;
 }
 
-void Visitor::Visit(Atom& node)
+void StringDumpVisitor::Visit(Atom& node)
 {
     std::cout << "<atom name='" << node.Thing() << "'";
     if(node.Deref()) {
@@ -156,21 +156,21 @@ void Visitor::Visit(Atom& node)
     }
 }
 
-void Visitor::Visit(RefVar& node)
+void StringDumpVisitor::Visit(RefVar& node)
 {
     std::cout << "<ref>" << std::endl; 
     node.Variable()->Accept(this);
     std::cout << "</ref>" << std::endl; 
 }
 
-void Visitor::Visit(Labelled& node)
+void StringDumpVisitor::Visit(Labelled& node)
 {
     std::cout << "<label name='" << node.Label() << "'>" << std::endl;
     node.Operand()->Accept(this);
     std::cout << "</label>" << std::endl;
 }
 
-void Visitor::Visit(Return& node)
+void StringDumpVisitor::Visit(Return& node)
 {
     std::cout << "<return";
     if(node.Operand()) {
@@ -182,7 +182,7 @@ void Visitor::Visit(Return& node)
     }
 }
 
-void Visitor::Visit(Empty& node)
+void StringDumpVisitor::Visit(Empty& node)
 {
     /* EMPTY */ // as the name implies
 }

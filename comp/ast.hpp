@@ -31,22 +31,22 @@ public:
     virtual ~Visitor() {}
     // implement Visit(concrete_class&);
 
-    virtual void Visit(Program& node);
-    virtual void Visit(If& node);
-    virtual void Visit(For& node);
-    virtual void Visit(Loop& node);
-    virtual void Visit(VarDecl& node);
-    virtual void Visit(SharedDecl& node);
-    virtual void Visit(Call& node);
-    virtual void Visit(Sub& node);
-    virtual void Visit(BinaryOp& node);
-    virtual void Visit(UnaryOp& node);
-    virtual void Visit(Assignation& node);
-    virtual void Visit(Atom& node);
-    virtual void Visit(RefVar& node);
-    virtual void Visit(Labelled& node);
-    virtual void Visit(Return& node);
-    virtual void Visit(Empty& node);
+    virtual void Visit(Program& node) =0;
+    virtual void Visit(If& node) =0;
+    virtual void Visit(For& node) =0;
+    virtual void Visit(Loop& node) =0;
+    virtual void Visit(VarDecl& node) =0;
+    virtual void Visit(SharedDecl& node) =0;
+    virtual void Visit(Call& node) =0;
+    virtual void Visit(Sub& node) =0;
+    virtual void Visit(BinaryOp& node) =0;
+    virtual void Visit(UnaryOp& node) =0;
+    virtual void Visit(Assignation& node) =0;
+    virtual void Visit(Atom& node) =0;
+    virtual void Visit(RefVar& node) =0;
+    virtual void Visit(Labelled& node) =0;
+    virtual void Visit(Return& node) =0;
+    virtual void Visit(Empty& node) =0;
 };
 
 #define CETTER(NAME, MEMBER) \
