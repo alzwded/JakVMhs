@@ -4,7 +4,7 @@
 #include "ast.hpp"
 #include <iostream>
 
-class StringDumpVisitor
+class XMLDumpVisitor
 : public Visitor
 {
     size_t indentation;
@@ -14,7 +14,7 @@ class StringDumpVisitor
         for(size_t i = 0; i < indentation; ++i) std::cout << "  ";
     }
 public:
-    StringDumpVisitor() : indentation(0) {}
+    XMLDumpVisitor() : indentation(0) {}
 
     virtual void Visit(Program& node);
     virtual void Visit(If& node);

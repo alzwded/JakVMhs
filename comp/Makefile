@@ -7,8 +7,8 @@ lexer.cpp: lexer.l
 parser.cpp: grammar.y
 	bison -g -v -d -o log grammar.y
 
-ast_test.bin: ast_test.cpp ast.hpp strvisitor.cpp strvisitor.hpp
-	g++ -g --std=gnu++11 -o ast_test.bin ast_test.cpp strvisitor.cpp
+ast_test.bin: ast_test.cpp ast.hpp xmldumpvisitor.cpp xmldumpvisitor.hpp
+	g++ -g --std=gnu++11 -o ast_test.bin ast_test.cpp xmldumpvisitor.cpp
 
 clean:
 	rm -f parser.output parser.c* parser.h* parser.dot comp.bin lexer.c* lexer.h* ast_test.bin

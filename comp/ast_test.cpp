@@ -2,7 +2,7 @@
 #include <memory>
 #include <algorithm>
 #include "ast.hpp"
-#include "strvisitor.hpp"
+#include "xmldumpvisitor.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     std::shared_ptr<Return> ret1(new Return(atom0));
     sub1->Add(ret1);
 
-    StringDumpVisitor v;
+    XMLDumpVisitor v;
     prg->Accept(&v);
 
     return 0;

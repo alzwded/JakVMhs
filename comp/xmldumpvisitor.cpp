@@ -1,8 +1,8 @@
-#include "strvisitor.hpp"
+#include "xmldumpvisitor.hpp"
 #include <algorithm>
 #include <iostream>
 
-void StringDumpVisitor::Visit(Program& node)
+void XMLDumpVisitor::Visit(Program& node)
 {
     Indent();
     std::cout << "<program>" << std::endl;
@@ -15,7 +15,7 @@ void StringDumpVisitor::Visit(Program& node)
     std::cout << "</program>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(If& node)
+void XMLDumpVisitor::Visit(If& node)
 {
     Indent();
     std::cout << "<if true='" << node.Truth() << "' false='" << node.Otherwise() << "'>" << std::endl;
@@ -26,7 +26,7 @@ void StringDumpVisitor::Visit(If& node)
     std::cout << "</if>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(For& node)
+void XMLDumpVisitor::Visit(For& node)
 {
     Indent();
     std::cout << "<for name='" << node.VarName() << "'>" << std::endl;
@@ -71,7 +71,7 @@ void StringDumpVisitor::Visit(For& node)
     std::cout << "</for>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(Loop& node)
+void XMLDumpVisitor::Visit(Loop& node)
 {
     Indent();
     std::cout << "<loop>" << std::endl;
@@ -100,7 +100,7 @@ void StringDumpVisitor::Visit(Loop& node)
     std::cout << "</loop>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(VarDecl& node)
+void XMLDumpVisitor::Visit(VarDecl& node)
 {
     Indent();
     std::cout << "<var name='" << node.Name();
@@ -116,7 +116,7 @@ void StringDumpVisitor::Visit(VarDecl& node)
     }
 }
 
-void StringDumpVisitor::Visit(SharedDecl& node)
+void XMLDumpVisitor::Visit(SharedDecl& node)
 {
     Indent();
     std::cout << "<shared name='" << node.Name();
@@ -132,7 +132,7 @@ void StringDumpVisitor::Visit(SharedDecl& node)
     }
 }
 
-void StringDumpVisitor::Visit(Call& node)
+void XMLDumpVisitor::Visit(Call& node)
 {
     Indent();
     std::cout << "<call";
@@ -155,7 +155,7 @@ void StringDumpVisitor::Visit(Call& node)
     std::cout << "</call>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(Sub& node)
+void XMLDumpVisitor::Visit(Sub& node)
 {
     Indent();
     std::cout << "<sub name='" << node.Name() << "'";
@@ -178,7 +178,7 @@ void StringDumpVisitor::Visit(Sub& node)
     std::cout << "</sub>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(BinaryOp& node)
+void XMLDumpVisitor::Visit(BinaryOp& node)
 {
     Indent();
     std::cout << "<" << node.Operation() << ">" << std::endl;
@@ -190,7 +190,7 @@ void StringDumpVisitor::Visit(BinaryOp& node)
     std::cout << "</" << node.Operation() << ">" << std::endl;
 }
 
-void StringDumpVisitor::Visit(UnaryOp& node)
+void XMLDumpVisitor::Visit(UnaryOp& node)
 {
     Indent();
     std::cout << "<" << node.Operation() << ">" << std::endl;
@@ -201,7 +201,7 @@ void StringDumpVisitor::Visit(UnaryOp& node)
     std::cout << "</" << node.Operation() << ">" << std::endl;
 }
 
-void StringDumpVisitor::Visit(Assignation& node)
+void XMLDumpVisitor::Visit(Assignation& node)
 {
     Indent();
     std::cout << "<assign>" << std::endl;
@@ -225,7 +225,7 @@ void StringDumpVisitor::Visit(Assignation& node)
     std::cout << "</assign>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(Atom& node)
+void XMLDumpVisitor::Visit(Atom& node)
 {
     Indent();
     std::cout << "<atom name='" << node.Thing() << "'";
@@ -241,7 +241,7 @@ void StringDumpVisitor::Visit(Atom& node)
     }
 }
 
-void StringDumpVisitor::Visit(RefVar& node)
+void XMLDumpVisitor::Visit(RefVar& node)
 {
     Indent();
     std::cout << "<ref>" << std::endl; 
@@ -252,7 +252,7 @@ void StringDumpVisitor::Visit(RefVar& node)
     std::cout << "</ref>" << std::endl; 
 }
 
-void StringDumpVisitor::Visit(Labelled& node)
+void XMLDumpVisitor::Visit(Labelled& node)
 {
     Indent();
     std::cout << "<label name='" << node.Label() << "'>" << std::endl;
@@ -263,7 +263,7 @@ void StringDumpVisitor::Visit(Labelled& node)
     std::cout << "</label>" << std::endl;
 }
 
-void StringDumpVisitor::Visit(Return& node)
+void XMLDumpVisitor::Visit(Return& node)
 {
     Indent();
     std::cout << "<return";
@@ -279,7 +279,7 @@ void StringDumpVisitor::Visit(Return& node)
     }
 }
 
-void StringDumpVisitor::Visit(Empty& node)
+void XMLDumpVisitor::Visit(Empty& node)
 {
     /* EMPTY */ // as the name implies
 }
