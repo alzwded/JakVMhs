@@ -18,12 +18,10 @@ class Call;
 class Sub;
 class BinaryOp;
 class UnaryOp;
-class VarId;
 class Assignation;
 class Atom;
-class RefVar;
-class Jumpable;
 class Labelled;
+class RefVar;
 class Return;
 class Empty;
 
@@ -43,11 +41,9 @@ public:
     virtual void Visit(Sub& node);
     virtual void Visit(BinaryOp& node);
     virtual void Visit(UnaryOp& node);
-    virtual void Visit(VarId& node);
     virtual void Visit(Assignation& node);
     virtual void Visit(Atom& node);
     virtual void Visit(RefVar& node);
-    virtual void Visit(Jumpable& node);
     virtual void Visit(Labelled& node);
     virtual void Visit(Return& node);
     virtual void Visit(Empty& node);
@@ -189,14 +185,14 @@ class Call
     typedef std::vector<std::shared_ptr<Node> > listOfNodes;
     std::string from_;
     std::string name_;
-    std::vector<listOfNodes> with_;
+    listOfNodes with_;
 public:
     Call(decltype(name_) const& name, decltype(from_) const& from)
         : name_(name)
         , from_(from)
     {}
 
-    void AddParam(listOfNodes const& l)
+    void AddParam(std::shared_ptr<Node> const& l)
     {
         with_.push_back(l);
     }
@@ -208,7 +204,7 @@ public:
 };
 
 class Sub
-: public Node
+: public ContainerNode
 {
     std::string name_;
     std::vector<std::string> params_;
@@ -258,18 +254,22 @@ public:
     ACCEPT()
 };
 
-class VarId
+class Atom
 : public Node
 {
-    std::string base_;
+    std::string thing_;
     std::shared_ptr<Node> deref_;
 public:
-    VarId(decltype(base_) const& base, decltype(deref_) const& deref)
-        : base_(base)
+    Atom(decltype(thing_) const& thing)
+        : thing_(thing)
+        , deref_(NULL)
+    {}
+    Atom(decltype(thing_) const& base, decltype(deref_) const& deref)
+        : thing_(base)
         , deref_(deref)
     {}
 
-    CETTER(Base, base_)
+    CETTER(Thing, thing_)
     CETTER(Deref, deref_)
     ACCEPT()
 };
@@ -277,7 +277,7 @@ public:
 class Assignation
 : public Node
 {
-    std::shared_ptr<VarId> name_;
+    std::shared_ptr<Atom> name_;
     std::shared_ptr<Node> expression_;
 public:
     Assignation(decltype(name_) const& name, decltype(expression_) const & expression)
@@ -290,45 +290,16 @@ public:
     ACCEPT()
 };
 
-class Atom
-: public Node
-{
-    std::string thing_;
-public:
-    Atom(decltype(thing_) const& thing)
-        : thing_(thing)
-    {}
-
-    CETTER(Thing, thing_)
-    ACCEPT()
-};
-
 class RefVar
 : public Node
 {
-    std::shared_ptr<VarId> var_;
+    std::shared_ptr<Atom> var_;
 public:
     RefVar(decltype(var_) const& var)
         : var_(var)
     {}
 
     CETTER(Variable, var_)
-    ACCEPT()
-};
-
-class Jumpable
-: public Node
-{
-    std::string op_;
-    std::shared_ptr<Node> jmpExp_;
-public:
-    Jumpable(decltype(op_) const& op, decltype(jmpExp_) const& jmpExp)
-        : op_(op)
-        , jmpExp_(jmpExp)
-    {}
-
-    CETTER(Operation, op_)
-    CETTER(Operand, op_)
     ACCEPT()
 };
 

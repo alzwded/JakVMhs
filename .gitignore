@@ -32,6 +32,8 @@
 *.bin
 log
 *.log
+# AST dump format
+*.xml
 
 # cygwin
 *.stackdump
