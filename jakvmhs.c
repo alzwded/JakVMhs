@@ -11,7 +11,6 @@
 #include <string.h>
 
 #include "jakvmhs.h"
-#include "sn.h"
 
 struct {
 #define RA 30
@@ -81,8 +80,6 @@ static void reset_machine_state()
     machine.regs[SP] = 0;
     // start at 0x0
     machine.regs[IP] = 0;
-    // clear short name manager
-    SN_reset();
 }
 
 // loads or creates the persistent file and mmaps it into g_save_data
@@ -236,57 +233,6 @@ static char* os_deref_string(unsigned short pStr)
     return rets;
 }
 
-// wrapper around SN_get (C strings)
-static char const* os_from_short_name(unsigned short sName)
-{
-    return SN_get(sName);
-}
-
-// wrapper around SN_assign
-static void os_assign_short_name()
-{
-    unsigned short pStr = pop();
-
-    char* rets = os_deref_string(pStr);
-
-    push(SN_assign(rets));
-    free(rets);
-}
-
-// wrapper around SN_dispose
-static void os_free_short_name()
-{
-    unsigned short w = pop();
-    SN_dispose(w);
-}
-
-// wrapper around SN_get (internal)
-static void os_deref_short_name()
-{
-    unsigned short w = pop();
-    unsigned short addr = pop();
-
-    char const* str = SN_get(w);
-    cassert(str);
-
-    // encode string
-    size_t len = strlen(str);
-    char const* pEnd = str + len;
-    len += len % 2;
-    short* local = (short*)malloc(sizeof(char) * len);
-
-    size_t i;
-    for(i = 0; i < len / 2; ++i) {
-        char c1, c2;
-        if(str < pEnd) c1 = *str++;
-        else c1 = 0;
-        if(str < pEnd) c2 = *str++;
-        else c2 = 0;
-        unsigned short data = (c1 << 8) | c2;
-        machine.data[addr] = data;
-    }
-}
-
 //-------------------------------------------------------------
 // OS.log
 //-------------------------------------------------------------
@@ -327,25 +273,6 @@ static void os_logstring_p()
         error("undefined log_word state");
     }
     free(s);
-}
-
-// log an SN'd string
-static void os_logstring()
-{
-    short w = pop();
-    char const* s = os_from_short_name(w);
-    switch(g_logger_state) {
-    case LS_SECOND:
-        printf("%35s\n", s);
-        g_logger_state = LS_FIRST;
-        break;
-    case LS_FIRST:
-        printf("%35s", s);
-        g_logger_state = LS_SECOND;
-        break;
-    default:
-        error("undefined log_word state");
-    }
 }
 
 //-------------------------------------------------------------
@@ -559,9 +486,6 @@ static void interrupt()
         break;
     case 7:
         error("NOT IMPLEMENTED: read_string");
-        break;
-    case 8:
-        os_deref_short_name();
         break;
     case 10:
         os_read_save_word();
