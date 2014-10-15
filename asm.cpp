@@ -330,15 +330,11 @@ static void for_data()
                         c1 = name[i];
                     }
 
-                    if(i < pEnd - 1) {
-                        c2 = name[i + 1];
-                    }
-
                     unsigned short data = ((unsigned char)c2) | ((unsigned char)c1 << 8);
                     fwrite(&data, sizeof(short), 1, fout);
                     *current_size = ftell(fout);
                     size--;
-                    i += 2;
+                    ++i;
                     log(LOG_DATAGEN, "one byte down after %02X%02X\n", (int)c1, (int)c2);
                 }
                 log(LOG_DATAGEN, "after %s still need %ld\n", name.c_str(), size);

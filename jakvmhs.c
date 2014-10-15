@@ -206,8 +206,7 @@ static char* os_deref_string(unsigned short pStr)
     size_t start = pStr;
     size_t end;
     for(end = start; ; ++end) {
-        if((machine.data[end] & 0xFF00) == 0
-        || (machine.data[end] & 0xFF) == 0)
+        if((machine.data[end] & 0xFF00) == 0)
         {
             break;
         }
@@ -219,8 +218,6 @@ static char* os_deref_string(unsigned short pStr)
     while(1) {
         unsigned short crnt = machine.data[count];
         decoded[len++] = (crnt & 0xFF00) >> 8;
-        if(!decoded[len - 1]) break;
-        decoded[len++] = (crnt & 0xFF);
         if(!decoded[len - 1]) break;
         ++count;
         cassert(count < 0x10000);

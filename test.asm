@@ -3,7 +3,7 @@
 .data   ; TODO store strings in unicode 16be
 :myVal   7          42, 1, 2, 3, 4, 5, 42     ; comment
 :oneWord 1          42              ; yeah
-:str     4          'hello', 0      ;huh?
+:str     6          'hello', 0      ;huh?
 
 ; begin code
 
