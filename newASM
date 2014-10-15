@@ -6,9 +6,9 @@
 noop                    waste cycles
 interact                interact with OS; call system routine
 reset                   restart emulation; registers 0..30 are not reset
-pop                     destroy top value
 halt                    exit
 
+dup                     duplicate top value
 push.immed              next 2 instruction values will be pushed
 call                    pop top value and jump to that address; RA is in R30
 return                  return from call using RA from R30

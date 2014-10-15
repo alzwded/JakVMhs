@@ -411,6 +411,10 @@ static void for_code()
             }
         case 'D':
             switch(token[1]) {
+            case 'U':
+                END(token, 2);
+                produce(0x3);
+                continue;
             case 'V':
                 END(token, 2);
                 produce(0xE);
@@ -494,10 +498,6 @@ static void for_code()
             case 'I':
                 END(token, 2);
                 push_imed();
-                continue;
-            case 'P':
-                END(token, 2);
-                produce(0x3);
                 continue;
             case 'R':
                 if(token[2] != '.') error("expected register number");

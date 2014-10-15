@@ -177,14 +177,12 @@ static void load_image()
 
 static void push(short x)
 {
-    static int n = 0;
     cassert(machine.regs[SP] < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
 static short pop()
 {
-    static int n = 0;
     cassert(machine.regs[SP] > 0);
     short ret = machine.stack_data[--machine.regs[SP]];
     return ret;
@@ -197,7 +195,6 @@ static short pop()
 //-------------------------------------------------------------
 // OS.SN
 //-------------------------------------------------------------
-// TODO remove SN
 
 // dereference an internal string as a C string
 // must be free'd
@@ -557,14 +554,16 @@ static void not()
     push(!pop());
 }
 
-static void pop_op()
-{
-    (void) pop();
-}
-
 static void pop_register(size_t reg)
 {
     machine.regs[reg] = pop();
+}
+
+static void dup_op()
+{
+    cassert(machine.regs[SP] > 0);
+    short val = machine.stack_data[machine.regs[SP] - 1];
+    push(val);
 }
 
 static void push_immed()
@@ -696,7 +695,7 @@ static void further_decode()
             reset();
             break;
         case 0x03:
-            pop_op();
+            dup_op();
             break;
         case 0x04:
             halt_this_thing();
