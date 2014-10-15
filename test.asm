@@ -1,4 +1,6 @@
-.data
+; TODO CA and RT operations have changed behaviour; update these examples
+
+.data   ; TODO store strings in unicode 16be
 :myVal   7          42, 1, 2, 3, 4, 5, 42     ; comment
 :oneWord 1          42              ; yeah
 :str     4          'hello', 0      ;huh?
@@ -31,14 +33,18 @@
     JP                  ;
 
 :print_num
+    ; setup parameters
     PR.29               ; test
     RP.29
     PR.0                ; n (r0) = param1
+    RP.30               ; store previous call state
+    ; operate on parameters
     PI  11              ; n = 11 - n
     RP.0                ;
     SU                  ; 
     PI  :sysprintint
     CA                  ; call system routine
+    PR.30               ; restore previous return address
     RT                  ; return
 
 :sysprintint

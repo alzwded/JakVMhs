@@ -14,6 +14,7 @@
 #include "sn.h"
 
 struct {
+#define RA 30
 #define SP 31
 #define IP 32
 #define RLAST 33
@@ -22,9 +23,6 @@ struct {
     short data[0x10000];
 
     short stack_data[0x10000];
-    short call_stack[4096];
-
-    short* csp;
 } machine;
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
@@ -80,8 +78,6 @@ static void reset_machine_state()
 {
     // clear stacks
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
-    memset(&machine.call_stack[0], 0, 4096 * sizeof(short));
-    machine.csp = &machine.call_stack[0];
     machine.regs[SP] = 0;
     // start at 0x0
     machine.regs[IP] = 0;
@@ -204,6 +200,7 @@ static short pop()
 //-------------------------------------------------------------
 // OS.SN
 //-------------------------------------------------------------
+// TODO remove SN
 
 // dereference an internal string as a C string
 // must be free'd
@@ -658,6 +655,13 @@ static void push_immed()
     machine.regs[IP] += 2;
 }
 
+static void register_swap()
+{
+    unsigned short tmp = machine.regs[RA];
+    machine.regs[RA] = machine.regs[SP];
+    machine.regs[SP] = tmp;
+}
+
 static void reset()
 {
     reset_machine_state();
@@ -720,16 +724,14 @@ static void register_sh(size_t reg)
 
 static void return_op()
 {
-    cassert(machine.csp - &machine.call_stack[0] > 0);
-    unsigned short addr = *--machine.csp;
+    unsigned short addr = machine.regs[RA];
     machine.regs[IP] = addr;
 }
 
 static void call_op()
 {
-    cassert(machine.csp - &machine.call_stack[0] < 4096);
     unsigned short addr = pop();
-    *machine.csp++ = machine.regs[IP];
+    machine.regs[RA] = machine.regs[IP];
     machine.regs[IP] = addr - 1;
 }
 
@@ -807,6 +809,9 @@ static void further_decode()
             break;
         case 0x0E:
             div_op();
+            break;
+        case 0x0F:
+            register_swap();
             break;
         case 0x10:
             and();

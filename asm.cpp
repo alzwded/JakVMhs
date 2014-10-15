@@ -543,6 +543,10 @@ static void for_code()
                 END(token, 2);
                 produce(0x7);
                 continue;
+            case 'W':
+                END(token, 2);
+                produce(0x0F);
+                continue;
             default: error("invalid token");
             }
         case 'S':

@@ -10,8 +10,8 @@ pop                     destroy top value
 halt                    exit
 
 push.immed              next 2 instruction values will be pushed
-call                    pop top value and jump to that address
-return                  return from call
+call                    pop top value and jump to that address; RA is in R30
+return                  return from call using RA from R30
 load                    pops address, pushesh value from that memory address
 store                   pops value and address, stores at address
 
@@ -25,6 +25,8 @@ ior                     bitwise or
 xor                     bitwise xor
 not                     logical negation
 neg                     bitwise negation
+
+swap.regs               swaps R.30 and R.31
 
 compare.signed          pushes 0 if top value is less than next (signed)
 compare.unsigned        pushes 1 if top value is greatest (unsigned)
