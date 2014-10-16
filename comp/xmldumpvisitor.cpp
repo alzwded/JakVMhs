@@ -201,6 +201,28 @@ void XMLDumpVisitor::Visit(UnaryOp& node)
     std::cout << "</" << node.Operation() << ">" << std::endl;
 }
 
+void XMLDumpVisitor::Visit(Allocation& node)
+{
+    Indent();
+    std::cout << "<new>" << std::endl;
+    indentation++;
+    node.Operand()->Accept(this);
+    --indentation;
+    Indent();
+    std::cout << "</new>" << std::endl;
+}
+
+void XMLDumpVisitor::Visit(Deallocation& node)
+{
+    Indent();
+    std::cout << "<free>" << std::endl;
+    indentation++;
+    node.Operand()->Accept(this);
+    --indentation;
+    Indent();
+    std::cout << "</free>" << std::endl;
+}
+
 void XMLDumpVisitor::Visit(Assignation& node)
 {
     Indent();

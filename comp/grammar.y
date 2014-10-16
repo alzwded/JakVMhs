@@ -256,7 +256,7 @@ assignment_statement : VAR "=" expression EOL {
                        }
                        ;
 
-new_expression : "new" INTEGER { log("allocate", $2); }
+new_expression : "new" expression { log("allocate", ""); }
                ;
 
 free_statement : "free" VAR EOL { log("free", $2); logEndStatement(); }
@@ -380,6 +380,7 @@ int main(void)
         L("  c = call f(a, b)")
         L("  a = new 3")
         L("  a[0] = new 1")
+        L("  a[1] = new 3 * 5 + 2")
         L("  free a[0]")
         L("  call f")
         L("  for c = a, b")
