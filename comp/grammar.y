@@ -3,6 +3,7 @@
 #include "parser.hpp"
 #include "lexer.hpp"
 #include "ast.hpp"
+#include "xmldumpvisitor.hpp"
 
 #include <cctype>
 #include <string>
@@ -10,6 +11,41 @@
 #include <stack>
 #include <memory>
 #include <algorithm>
+
+#define WITH_CLASSIC_LOG
+#define WITH_STACK_DUMPS 0
+
+#if defined(WITH_STACK_DUMPS) && WITH_STACK_DUMPS
+# include <typeinfo>
+# define STACK_DUMP() do{\
+    decltype(g_stack) copy = g_stack; \
+    std::cerr << "== begin stack dump ==" << std::endl; \
+    auto i = 0u; \
+    while(!copy.empty()) { \
+        std::cerr << ">>> " << i++ << "\t" << typeid(*(copy.top().get())).name() << std::endl; \
+        copy.pop(); \
+    } \
+}while(0)
+#else
+# define STACK_DUMP() do{ ((void*) 0); }while(0)
+#endif
+
+#define BINARY_OP(OP) do{\
+    STACK_DUMP(); \
+    auto right = g_stack.top(); \
+    g_stack.pop(); \
+    auto left = g_stack.top(); \
+    g_stack.pop(); \
+    std::shared_ptr<Node> bop(new BinaryOp(OP, left, right)); \
+    g_stack.push(bop); \
+}while(0)
+#define UNARY_OP(OP) do{\
+    STACK_DUMP(); \
+    auto right = g_stack.top(); \
+    g_stack.pop(); \
+    std::shared_ptr<Node> bop(new UnaryOp(OP, right)); \
+    g_stack.push(bop); \
+}while(0)
 
 static std::stack<std::shared_ptr<Node>> g_stack;
 #define FLAG_SHARED (0x1)
@@ -24,8 +60,7 @@ static std::shared_ptr<Node> variableMagic(std::string const& varName)
     } else if(varName[0] == '*') {
         auto expr = g_stack.top();
         g_stack.pop();
-        std::shared_ptr<Node> atom(new Atom((varName.c_str() + 1)));
-        ret = new RefVar(atom, expr);
+        ret = new Atom((varName.c_str() + 1), expr);
     } else {
         ret = new Atom(varName);
     }
@@ -154,13 +189,9 @@ program_for_real : {
                    }
                    program { logEnd(); } ;
 
-program : program top_level {
-              auto container = g_stack.top();
-              g_stack.pop();
-              auto prg = std::dynamic_pointer_cast<Program>(g_stack.top());
-              prg->Add(container);
-          }
-          | ;
+program : program top_level 
+        | /* EMPTY */
+        ;
 
 top_level : shared_clause | sub | EOL ;
 
@@ -182,16 +213,21 @@ variable_decl_list : var_decl {
                          g_stack.pop();
                          auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
                          parent->Add(n);
+                         XMLDumpVisitor v;
+                         parent->Accept(&v);
                      }
                      | variable_decl_list "," var_decl {
                          auto n = g_stack.top();
                          g_stack.pop();
                          auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
                          parent->Add(n);
+                         XMLDumpVisitor v;
+                         parent->Accept(&v);
                      }
                      ;
 
 var_decl : VAR_ID {
+               STACK_DUMP();
                log("declare", $1);
                logEndStatement();
                if(g_parserFlags & FLAG_SHARED) {
@@ -209,6 +245,7 @@ var_decl : VAR_ID {
                } "=" expression {
                log("save to", $1);
                logEndStatement();
+               STACK_DUMP();
                if(g_parserFlags & FLAG_SHARED) {
                    std::shared_ptr<Node> expression = g_stack.top();
                    g_stack.pop();
@@ -216,6 +253,7 @@ var_decl : VAR_ID {
                    g_stack.push(shDecl);
                } else {
                    std::shared_ptr<Node> expression = g_stack.top();
+                   g_stack.pop();
                    std::shared_ptr<VarDecl> varDecl(new VarDecl($1, expression));
                    g_stack.push(varDecl);
                }
@@ -224,12 +262,17 @@ var_decl : VAR_ID {
 
 sub : "sub" IDENT {
           log("sub", $2);
-          std::shared_ptr<Sub> call(new Sub($2));
+          std::shared_ptr<Sub> sub(new Sub($2));
+          g_stack.push(sub);
       } "(" opt_variable_list ")" EOL {
           ++indent; logEndStatement();
       } clause_list "end" "sub" EOL { 
           log("end", "sub");
           --indent; logEndStatement();
+          auto n = g_stack.top();
+          g_stack.pop();
+          auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
+          parent->Add(n);
       }
       ;
 
@@ -247,7 +290,7 @@ variable_list : VAR_ID {
 
 opt_variable_list : | variable_list ;
 
-clause_list : sub_clauses | clause_list sub_clauses ;
+clause_list : { STACK_DUMP(); } sub_clauses | clause_list {STACK_DUMP();} sub_clauses ;
 
 sub_clauses : var_clause | shared_clause | inner_clauses ;
 
@@ -265,9 +308,16 @@ inner_clauses : label_decl true_inner_clauses {
                    auto n = g_stack.top();
                    g_stack.pop();
                    std::shared_ptr<Labelled> label(new Labelled(lblName, n));
-                   g_stack.push(label);
+                   //g_stack.push(label);
+                   auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
+                   parent->Add(label);
                 }
-                | true_inner_clauses
+                | true_inner_clauses {
+                   auto n = g_stack.top();
+                   g_stack.pop();
+                   auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
+                   parent->Add(n);
+                }
                 ;
 
 true_inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | free_statement ;
@@ -347,7 +397,7 @@ for_statement : "for" IDENT "=" IDENT "," IDENT EOL {
                  ;
 
 next_statement : "next" EOL { log("next", ""); logEndStatement();
-                   std::shared_ptr<Empty> empty(new Empty());
+                   std::shared_ptr<Empty> empty(nullptr);
                    std::shared_ptr<Next> next(new Next(empty));
                    g_stack.push(next);
                }
@@ -359,7 +409,7 @@ next_statement : "next" EOL { log("next", ""); logEndStatement();
                ;
 
 return_statement : "return" EOL { log("return", ""); logEndStatement();
-                     std::shared_ptr<Empty> empty(new Empty());
+                     std::shared_ptr<Empty> empty(nullptr);
                      std::shared_ptr<Return> ret(new Return(empty));
                      g_stack.push(ret);
                  }
@@ -372,7 +422,7 @@ return_statement : "return" EOL { log("return", ""); logEndStatement();
                  ;
 
 break_statement : "break" EOL { log("break", ""); logEndStatement();
-                    std::shared_ptr<Empty> empty(new Empty());
+                    std::shared_ptr<Empty> empty(nullptr);
                     std::shared_ptr<Break> next(new Break(empty));
                     g_stack.push(next);
                 }
@@ -386,18 +436,18 @@ break_statement : "break" EOL { log("break", ""); logEndStatement();
 assignment_statement : VAR "=" expression EOL {
                            log("save to", $1);
                            logEndStatement();
-                           auto var = variableMagic($1);
                            auto expr = g_stack.top();
                            g_stack.pop();
+                           auto var = variableMagic($1);
                            std::shared_ptr<Assignation> ass(new Assignation(var, expr));
                            g_stack.push(ass);
                        }
                      | VAR "=" new_expression EOL {
                            log("save to", $1);
                            logEndStatement();
-                           auto var = variableMagic($1);
                            auto expr = g_stack.top();
                            g_stack.pop();
+                           auto var = variableMagic($1);
                            std::shared_ptr<Assignation> ass(new Assignation(var, expr));
                            g_stack.push(ass);
                        }
@@ -419,45 +469,107 @@ free_statement : "free" VAR EOL { log("free", $2); logEndStatement();
                }
                ;
 
-regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list ")" { log("end", "call"); }
-                 | "call" VAR_ID { log("call", $2); log("end", "call"); }
-                 ;
+call_expression : "from" STRING "call" VAR_ID
+                {
+                    log("from", $2); 
+                    log("call", $4);
+                    std::shared_ptr<Call> call(new Call($4, $2));
+                    g_stack.push(call);
+                }  "(" expression_list ")"
+                {
+                    log("end", "call");
+                }
 
-call_expression : "from" STRING { log("from", $2); } regular_call_expression
-                | regular_call_expression
+                | "from" STRING "call" VAR_ID
+                {
+                    log("from", $2); 
+                    log("call", $4);
+                    std::shared_ptr<Call> call(new Call($4, $2));
+                    g_stack.push(call);
+                    log("end", "call");
+                }
+
+                | "call" VAR_ID
+                {
+                    log("call", $2);
+                    std::shared_ptr<Call> call(new Call($2, ""));
+                    g_stack.push(call);
+                } "(" expression_list ")"
+                {
+                    log("end", "call");
+                }
+
+                | "call" VAR_ID
+                {
+                    log("call", $2);
+                    std::shared_ptr<Call> call(new Call($2, ""));
+                    g_stack.push(call);
+                    log("end", "call");
+                }
                 ;
 
 call_statement : call_expression EOL { logEndStatement(); } ;
 
-expression_list : { log("with", ""); } expression | expression_list "," { log("with", ""); } expression ;
+expression_list : { log("with", ""); } expression {
+                      STACK_DUMP();
+                      auto n = g_stack.top();
+                      g_stack.pop();
+                      XMLDumpVisitor v;
+                      n->Accept(&v);
+                      auto call = std::dynamic_pointer_cast<Call>(g_stack.top());
+                      call->AddParam(n);
+                  }
+                  | expression_list "," {
+                      log("with", "");
+                  } expression {
+                      STACK_DUMP();
+                      auto n = g_stack.top();
+                      g_stack.pop();
+                      XMLDumpVisitor v;
+                      n->Accept(&v);
+                      auto call = std::dynamic_pointer_cast<Call>(g_stack.top());
+                      call->AddParam(n);
+                  }
+                  ;
 
-atom : IDENT ;
+atom : IDENT { 
+         auto n = variableMagic($1);
+         //std::shared_ptr<Node> n(new Atom($1));
+         g_stack.push(n);
+     }
+     ;
 
 /* the point of this project is not to have a Super Awesome Parser (tm)
    but rather to just _have_ a parser. Therefore, I don't care that I
    don't handle operator precedence, because I can use ()'s */
 expression : expression1 | "(" expression ")" ;
 expression1 : call_expression | numeric_expression ;
-numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); }
-                     | expression TOKEN_MINUS expression { log("-", ""); }
-                     | expression TOKEN_STAR expression { log("*", ""); }
-                     | expression TOKEN_SLASH expression { log("/", ""); }
-                     | expression TOKEN_PERCENT expression { log("%", ""); }
-                     | TOKEN_MINUS expression { log("-", "unary"); }
-                     | expression TOKEN_EQUALS expression { log("==", ""); }
-                     | expression TOKEN_AND expression { log("&&", ""); }
-                     | expression TOKEN_OR expression { log("||", ""); }
-                     | expression TOKEN_XOR expression { log("^^", ""); }
-                     | expression TOKEN_BITAND expression { log("&", ""); }
-                     | expression TOKEN_BITOR expression { log("|", ""); }
-                     | expression TOKEN_BITXOR expression { log("^", ""); }
-                     | expression TOKEN_LTE expression { log("<=", ""); }
-                     | expression TOKEN_GTE expression { log(">=", ""); }
-                     | expression TOKEN_LT expression { log("<", ""); }
-                     | expression TOKEN_GT expression { log(">", ""); }
-                     | TOKEN_BITNEG expression { log("~", ""); }
-                     | TOKEN_NOT expression { log("!", ""); }
-                     | TOKEN_DEREF VAR { log("@", $2); }
+numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); BINARY_OP("+"); }
+                     | expression TOKEN_MINUS expression { log("-", ""); BINARY_OP("-"); }
+                     | expression TOKEN_STAR expression { log("*", ""); BINARY_OP("*"); }
+                     | expression TOKEN_SLASH expression { log("/", ""); BINARY_OP("/"); }
+                     | expression TOKEN_PERCENT expression { log("%", ""); BINARY_OP("%"); }
+                     | expression TOKEN_EQUALS expression { log("==", ""); BINARY_OP("=="); }
+                     | expression TOKEN_AND expression { log("&&", ""); BINARY_OP("&&"); }
+                     | expression TOKEN_OR expression { log("||", ""); BINARY_OP("||"); }
+                     | expression TOKEN_XOR expression { log("^^", ""); BINARY_OP("^^"); }
+                     | expression TOKEN_BITAND expression { log("&", ""); BINARY_OP("&"); }
+                     | expression TOKEN_BITOR expression { log("|", ""); BINARY_OP("|"); }
+                     | expression TOKEN_BITXOR expression { log("^", ""); BINARY_OP("^"); }
+                     | expression TOKEN_LTE expression { log("<=", ""); BINARY_OP("<="); }
+                     | expression TOKEN_GTE expression { log(">=", ""); BINARY_OP(">="); }
+                     | expression TOKEN_LT expression { log("<", ""); BINARY_OP("<"); }
+                     | expression TOKEN_GT expression { log(">", ""); BINARY_OP(">"); }
+                     | TOKEN_MINUS expression { log("-", "unary"); UNARY_OP("-"); }
+                     | TOKEN_BITNEG expression { log("~", ""); UNARY_OP("~"); }
+                     | TOKEN_NOT expression { log("!", ""); UNARY_OP("!"); }
+                     | TOKEN_DEREF VAR {
+                         STACK_DUMP();
+                         log("@", $2);
+                         auto var = variableMagic($2);
+                         std::shared_ptr<Node> ref(new RefVar(var));
+                         g_stack.push(ref);
+                     }
                      | atom { log("atom", $1); }
                      ;
 
@@ -520,6 +632,7 @@ void parse_stdin()
 }
 
 #define L(X) X "\n"
+#include <fstream>
 
 int main(void)
 {
@@ -557,6 +670,10 @@ int main(void)
         ;
  
     doparse(test);
+
+    std::fstream testfile("parser.xml", std::ios::out);
+    XMLDumpVisitor v(testfile);
+    g_stack.top()->Accept(&v);
 
     parse_stdin();
  

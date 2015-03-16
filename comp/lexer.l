@@ -73,7 +73,7 @@ STRING      L?\"(\\.|[^\\"])*\"
 {HEXNUMBER}     { int tempx; sscanf(yytext, "%d", &tempx); std::stringstream ss; ss << tempx; *yylval = ss.str(); return INTEGER; }
 {NUMBER}        { int tempx; sscanf(yytext, "%d", &tempx); std::stringstream ss; ss << tempx; *yylval = ss.str(); return INTEGER; }
 {VAR_ID}        { yylval->assign(yytext); return VAR_ID; }
-{STRING}        { yylval->assign(yytext); return STRING; }
+{STRING}        { char* text = strdup(yytext + 1); text[strlen(text) - 1] = '\0'; yylval->assign(text); free(text); return STRING; }
  
 .               {  }
  

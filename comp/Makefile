@@ -1,5 +1,5 @@
-comp.bin: lexer.cpp parser.cpp
-	g++ -g --std=gnu++11 -o comp.bin parser.cpp lexer.cpp
+comp.bin: lexer.cpp parser.cpp ast.hpp xmldumpvisitor.hpp xmldumpvisitor.cpp
+	g++ -g --std=gnu++11 -o comp.bin parser.cpp lexer.cpp xmldumpvisitor.cpp
 
 lexer.cpp: lexer.l
 	flex lexer.l

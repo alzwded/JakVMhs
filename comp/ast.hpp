@@ -304,13 +304,12 @@ public:
 };
 
 class RefVar
-: public UnaryNode
+: public Node
 {
     std::shared_ptr<Node> var_;
 public:
-    RefVar(operand_t const& operand, decltype(var_) const& var)
-        : UnaryNode(operand)
-        , var_(var)
+    RefVar(decltype(var_) const& var)
+        : var_(var)
     {}
 
     CETTER(Variable, var_)
