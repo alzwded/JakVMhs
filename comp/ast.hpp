@@ -24,6 +24,8 @@ class Assignation;
 class Atom;
 class Labelled;
 class RefVar;
+class Break;
+class Next;
 class Return;
 class Empty;
 
@@ -49,6 +51,8 @@ public:
     virtual void Visit(Atom& node) =0;
     virtual void Visit(RefVar& node) =0;
     virtual void Visit(Labelled& node) =0;
+    virtual void Visit(Next& node) =0;
+    virtual void Visit(Break& node) =0;
     virtual void Visit(Return& node) =0;
     virtual void Visit(Empty& node) =0;
 };
@@ -286,7 +290,7 @@ public:
 class Assignation
 : public Node
 {
-    std::shared_ptr<Atom> name_;
+    std::shared_ptr<Node> name_;
     std::shared_ptr<Node> expression_;
 public:
     Assignation(decltype(name_) const& name, decltype(expression_) const & expression)
@@ -302,7 +306,7 @@ public:
 class RefVar
 : public UnaryNode
 {
-    std::shared_ptr<Atom> var_;
+    std::shared_ptr<Node> var_;
 public:
     RefVar(operand_t const& operand, decltype(var_) const& var)
         : UnaryNode(operand)
@@ -324,6 +328,28 @@ public:
     {}
 
     CETTER(Label, label_);
+    ACCEPT()
+};
+
+class Next
+: public UnaryNode
+{
+public:
+    Next(operand_t const& operand)
+        : UnaryNode(operand)
+    {}
+
+    ACCEPT()
+};
+
+class Break
+: public UnaryNode
+{
+public:
+    Break(operand_t const& operand)
+        : UnaryNode(operand)
+    {}
+
     ACCEPT()
 };
 
