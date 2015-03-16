@@ -625,7 +625,7 @@ int main(int argc, char* argv[])
     data_pos = 0x10000;
     fseek(fout, data_pos, SEEK_SET);
 
-    g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
+    //g_flags &= ~LOG_TOKENIZER & ~LOG_DATAGEN;
 
     try {
         assemble();

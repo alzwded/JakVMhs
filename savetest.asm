@@ -1,5 +1,5 @@
 .data
-:hellow 7   'hello world!', 0
+:hellow 13   'hello world!', 0
 :fortytwo   1   42
 
 .code

@@ -90,9 +90,10 @@ static short* open_save_data()
     char* rName = (char*)malloc(strlen(g_image) + 4);
     char* p = strrchr(g_image, '.');
     if(p) {
-        strncpy(rName, g_image, p - g_image);
+        (void) strncpy(rName, g_image, p - g_image);
+        rName[p - g_image] = '\0';
     } else {
-        strcpy(rName, g_image);
+        (void) strcpy(rName, g_image);
     }
     (void) strcat(rName, ".sav");
 
