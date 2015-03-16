@@ -31,6 +31,7 @@
     JP                  ;
 
 :print_num
+    RP.30
     PR.29               ; test
     RP.29
     PR.0                ; n (r0) = param1
@@ -39,6 +40,7 @@
     SU                  ; 
     PI  :sysprintint
     CA                  ; call system routine
+    PR.30
     RT                  ; return
 
 :sysprintint

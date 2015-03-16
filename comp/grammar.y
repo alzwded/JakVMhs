@@ -250,8 +250,8 @@ assignment_statement : VAR "=" expression EOL {
                        }
                        ;
 
-regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list ")"
-                 | "call" VAR_ID { log("call", $2); }
+regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list ")" { log("end", "call"); }
+                 | "call" VAR_ID { log("call", $2); log("end", "call"); }
                  ;
 
 call_expression : "from" STRING { log("from", $2); } regular_call_expression
@@ -294,7 +294,7 @@ numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); }
 
 IDENT : INTEGER { $$ = $1; } | STRING { $$ = $1; } | VAR { $$ = $1; } ;
 JMPLABEL : TOKEN_MINUS { $$.assign("-"); } | IDENT { $$ = $1; } ;
-VAR : VAR_ID { $$ = $1; } | VAR_ID "[" expression "]" { $$ = std::string("*") + $1; } ;
+VAR : VAR_ID { $$ = $1; } | VAR_ID { log("deref", $1); } "[" expression "]" { log("end", "deref"); $$ = std::string("*").append($1); } ;
 
 %%
 
@@ -377,6 +377,7 @@ int main(void)
         L("  a = from \"lib\" call utility")
         L("  a = from \"lib\" call utility + call f(41 + a[3 * 5 + 2], call g(0)) + from \"lib\" call utility")
         L("  call f(a[3 + 2])")
+        L("  a[0] = 31")
         L("return 0")
         L("return")
         L("end sub")
