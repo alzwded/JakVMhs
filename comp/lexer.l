@@ -29,6 +29,8 @@ STRING      L?\"(\\.|[^\\"])*\"
  
 [ \t]*          { /* Skip blanks. */ }
 [\n]            { return EOL; }
+"new"           { return TOKEN_NEW; }
+"free"          { return TOKEN_FREE; }
 "shared"        { return TOKEN_SHARED; }
 "var"           { return TOKEN_VAR; }
 "sub"           { return TOKEN_SUB; }

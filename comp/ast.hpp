@@ -18,6 +18,8 @@ class Call;
 class Sub;
 class BinaryOp;
 class UnaryOp;
+class Allocation;
+class Deallocation;
 class Assignation;
 class Atom;
 class Labelled;
@@ -41,6 +43,8 @@ public:
     virtual void Visit(Sub& node) =0;
     virtual void Visit(BinaryOp& node) =0;
     virtual void Visit(UnaryOp& node) =0;
+    virtual void Visit(Allocation& node) =0;
+    virtual void Visit(Deallocation& node) =0;
     virtual void Visit(Assignation& node) =0;
     virtual void Visit(Atom& node) =0;
     virtual void Visit(RefVar& node) =0;
@@ -326,6 +330,27 @@ public:
     {}
 
     ACCEPT()
+};
+
+class Allocation
+: public UnaryNode
+{
+public:
+    Allocation(operand_t const& operand)
+        : UnaryNode(operand)
+    {}
+    ACCEPT();
+};
+
+class Deallocation
+: public UnaryNode
+{
+    Deallocation() = delete;
+public:
+    Deallocation(operand_t const& operand)
+        : UnaryNode(operand)
+    {}
+    ACCEPT();
 };
 
 class Empty

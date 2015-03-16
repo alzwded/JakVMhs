@@ -11,9 +11,9 @@
 #include <string.h>
 
 #include "jakvmhs.h"
-#include "sn.h"
 
 struct {
+#define RA 30
 #define SP 31
 #define IP 32
 #define RLAST 33
@@ -22,9 +22,6 @@ struct {
     short data[0x10000];
 
     short stack_data[0x10000];
-    short call_stack[4096];
-
-    short* csp;
 } machine;
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
@@ -80,13 +77,9 @@ static void reset_machine_state()
 {
     // clear stacks
     memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
-    memset(&machine.call_stack[0], 0, 4096 * sizeof(short));
-    machine.csp = &machine.call_stack[0];
     machine.regs[SP] = 0;
     // start at 0x0
     machine.regs[IP] = 0;
-    // clear short name manager
-    SN_reset();
 }
 
 // loads or creates the persistent file and mmaps it into g_save_data
@@ -184,14 +177,12 @@ static void load_image()
 
 static void push(short x)
 {
-    static int n = 0;
     cassert(machine.regs[SP] < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
 static short pop()
 {
-    static int n = 0;
     cassert(machine.regs[SP] > 0);
     short ret = machine.stack_data[--machine.regs[SP]];
     return ret;
@@ -212,8 +203,7 @@ static char* os_deref_string(unsigned short pStr)
     size_t start = pStr;
     size_t end;
     for(end = start; ; ++end) {
-        if((machine.data[end] & 0xFF00) == 0
-        || (machine.data[end] & 0xFF) == 0)
+        if((machine.data[end] & 0xFF00) == 0)
         {
             break;
         }
@@ -226,8 +216,6 @@ static char* os_deref_string(unsigned short pStr)
         unsigned short crnt = machine.data[count];
         decoded[len++] = (crnt & 0xFF00) >> 8;
         if(!decoded[len - 1]) break;
-        decoded[len++] = (crnt & 0xFF);
-        if(!decoded[len - 1]) break;
         ++count;
         cassert(count < 0x10000);
     }
@@ -237,57 +225,6 @@ static char* os_deref_string(unsigned short pStr)
     free(decoded);
 
     return rets;
-}
-
-// wrapper around SN_get (C strings)
-static char const* os_from_short_name(unsigned short sName)
-{
-    return SN_get(sName);
-}
-
-// wrapper around SN_assign
-static void os_assign_short_name()
-{
-    unsigned short pStr = pop();
-
-    char* rets = os_deref_string(pStr);
-
-    push(SN_assign(rets));
-    free(rets);
-}
-
-// wrapper around SN_dispose
-static void os_free_short_name()
-{
-    unsigned short w = pop();
-    SN_dispose(w);
-}
-
-// wrapper around SN_get (internal)
-static void os_deref_short_name()
-{
-    unsigned short w = pop();
-    unsigned short addr = pop();
-
-    char const* str = SN_get(w);
-    cassert(str);
-
-    // encode string
-    size_t len = strlen(str);
-    char const* pEnd = str + len;
-    len += len % 2;
-    short* local = (short*)malloc(sizeof(char) * len);
-
-    size_t i;
-    for(i = 0; i < len / 2; ++i) {
-        char c1, c2;
-        if(str < pEnd) c1 = *str++;
-        else c1 = 0;
-        if(str < pEnd) c2 = *str++;
-        else c2 = 0;
-        unsigned short data = (c1 << 8) | c2;
-        machine.data[addr] = data;
-    }
 }
 
 //-------------------------------------------------------------
@@ -330,25 +267,6 @@ static void os_logstring_p()
         error("undefined log_word state");
     }
     free(s);
-}
-
-// log an SN'd string
-static void os_logstring()
-{
-    short w = pop();
-    char const* s = os_from_short_name(w);
-    switch(g_logger_state) {
-    case LS_SECOND:
-        printf("%35s\n", s);
-        g_logger_state = LS_FIRST;
-        break;
-    case LS_FIRST:
-        printf("%35s", s);
-        g_logger_state = LS_SECOND;
-        break;
-    default:
-        error("undefined log_word state");
-    }
 }
 
 //-------------------------------------------------------------
@@ -563,9 +481,6 @@ static void interrupt()
     case 7:
         error("NOT IMPLEMENTED: read_string");
         break;
-    case 8:
-        os_deref_short_name();
-        break;
     case 10:
         os_read_save_word();
         break;
@@ -639,14 +554,16 @@ static void not()
     push(!pop());
 }
 
-static void pop_op()
-{
-    (void) pop();
-}
-
 static void pop_register(size_t reg)
 {
     machine.regs[reg] = pop();
+}
+
+static void dup_op()
+{
+    cassert(machine.regs[SP] > 0);
+    short val = machine.stack_data[machine.regs[SP] - 1];
+    push(val);
 }
 
 static void push_immed()
@@ -656,6 +573,13 @@ static void push_immed()
                   lo = machine.code[addr + 2];
     push((hi << 8) | lo);
     machine.regs[IP] += 2;
+}
+
+static void register_swap()
+{
+    unsigned short tmp = machine.regs[RA];
+    machine.regs[RA] = machine.regs[SP];
+    machine.regs[SP] = tmp;
 }
 
 static void reset()
@@ -720,16 +644,14 @@ static void register_sh(size_t reg)
 
 static void return_op()
 {
-    cassert(machine.csp - &machine.call_stack[0] > 0);
-    unsigned short addr = *--machine.csp;
+    unsigned short addr = machine.regs[RA];
     machine.regs[IP] = addr;
 }
 
 static void call_op()
 {
-    cassert(machine.csp - &machine.call_stack[0] < 4096);
     unsigned short addr = pop();
-    *machine.csp++ = machine.regs[IP];
+    machine.regs[RA] = machine.regs[IP];
     machine.regs[IP] = addr - 1;
 }
 
@@ -773,7 +695,7 @@ static void further_decode()
             reset();
             break;
         case 0x03:
-            pop_op();
+            dup_op();
             break;
         case 0x04:
             halt_this_thing();
@@ -807,6 +729,9 @@ static void further_decode()
             break;
         case 0x0E:
             div_op();
+            break;
+        case 0x0F:
+            register_swap();
             break;
         case 0x10:
             and();

@@ -52,6 +52,8 @@ typedef void* yyscan_t;
 %token TOKEN_RETURN "return"
 %token TOKEN_NEXT "next"
 %token TOKEN_BREAK "break"
+%token TOKEN_NEW "new"
+%token TOKEN_FREE "free"
 %token TOKEN_FROM "from"
 %token TOKEN_LPAREN "("
 %token TOKEN_RPAREN ")"
@@ -175,7 +177,7 @@ var_clause : "var" { log("var", ""); ++indent; logEndStatement(); } variable_dec
 
 inner_clause_list : inner_clauses | inner_clause_list inner_clauses ;
 
-inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | label_decl ;
+inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | label_decl | free_statement ;
 
 label_decl : INTEGER ":" {
                  log("label", $1);
@@ -248,7 +250,18 @@ assignment_statement : VAR "=" expression EOL {
                            log("save to", $1);
                            logEndStatement();
                        }
+                     | VAR "=" new_expression EOL {
+                           log("save to", $1);
+                           logEndStatement();
+                       }
                        ;
+
+
+new_expression : "new" expression { log("allocate", ""); }
+               ;
+
+free_statement : "free" VAR EOL { log("free", $2); logEndStatement(); }
+               ;
 
 regular_call_expression : "call" VAR_ID { log("call", $2); } "(" expression_list ")" { log("end", "call"); }
                  | "call" VAR_ID { log("call", $2); log("end", "call"); }
@@ -367,6 +380,10 @@ int main(void)
         L("  b = (c + a) * (b + 1)")
         L("  c = @b")
         L("  c = call f(a, b)")
+        L("  a = new 3")
+        L("  a[0] = new 1")
+        L("  a[1] = new 3 * 5 + 2")
+        L("  free a[0]")
         L("  call f")
         L("  for c = a, b")
         L("    a = a + 1")

@@ -5,14 +5,8 @@ all: asm.bin jakvmhs.bin
 asm.bin: asm.cpp
 	g++ --std=gnu++11 -g -o asm.bin asm.cpp
 
-jakvmhs.bin: jakvmhs.c jakvmhs.h sn.o sn.h
-	gcc --std=gnu99 -g -o jakvmhs.bin jakvmhs.c sn.o -ldl -lstdc++
-
-sn.o: sn.cpp sn.h
-	g++ --std=gnu++11 -g -c sn.cpp
-
-sn_test.bin: testsn.cpp sn.cpp sn.h
-	g++ --std=gnu++11 -g testsn.cpp -o sn_test.bin
+jakvmhs.bin: jakvmhs.c jakvmhs.h
+	gcc --std=gnu99 -g -o jakvmhs.bin jakvmhs.c -ldl -lstdc++
 
 libtestutils.so: jakvmhs.h testutils.c
 	gcc -g -o libtestutils.so -shared -fPIC testutils.c

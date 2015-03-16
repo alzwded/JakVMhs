@@ -26,6 +26,8 @@ public:
     virtual void Visit(Sub& node);
     virtual void Visit(BinaryOp& node);
     virtual void Visit(UnaryOp& node);
+    virtual void Visit(Allocation& node);
+    virtual void Visit(Deallocation& node);
     virtual void Visit(Assignation& node);
     virtual void Visit(Atom& node);
     virtual void Visit(RefVar& node);

@@ -1,0 +1,43 @@
+31+1 regs
+64k instructions
+128k memory / 64k words
+4k call stack
+
+noop                    waste cycles
+interact                interact with OS; call system routine
+reset                   restart emulation; registers 0..30 are not reset
+halt                    exit
+
+dup                     duplicate top value
+push.immed              next 2 instruction values will be pushed
+call                    pop top value and jump to that address; RA is in R30
+return                  return from call using RA from R30
+load                    pops address, pushesh value from that memory address
+store                   pops value and address, stores at address
+
+add                     add top two values and push result
+sub
+mul
+mod
+div
+and                     bitwise and
+ior                     bitwise or
+xor                     bitwise xor
+not                     logical negation
+neg                     bitwise negation
+
+swap.regs               swaps R.30 and R.31
+
+compare.signed          pushes 0 if top value is less than next (signed)
+compare.unsigned        pushes 1 if top value is greatest (unsigned)
+
+jump                    unconditional jump to address in top register
+jump.ifzero             jump if top value is 0
+
+mask.R                  AND a register and top value and push result
+sh.R                    shift register l/r by amount in top value of stack
+rol.R                   roll register l/r by amount in top value of stack
+push.R                  pushes reg
+pop.R                   pops into reg
+inc.R                   increment register
+dec.R                   decrement register

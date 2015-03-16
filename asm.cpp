@@ -330,15 +330,11 @@ static void for_data()
                         c1 = name[i];
                     }
 
-                    if(i < pEnd - 1) {
-                        c2 = name[i + 1];
-                    }
-
                     unsigned short data = ((unsigned char)c2) | ((unsigned char)c1 << 8);
                     fwrite(&data, sizeof(short), 1, fout);
                     *current_size = ftell(fout);
                     size--;
-                    i += 2;
+                    ++i;
                     log(LOG_DATAGEN, "one byte down after %02X%02X\n", (int)c1, (int)c2);
                 }
                 log(LOG_DATAGEN, "after %s still need %ld\n", name.c_str(), size);
@@ -415,6 +411,10 @@ static void for_code()
             }
         case 'D':
             switch(token[1]) {
+            case 'U':
+                END(token, 2);
+                produce(0x3);
+                continue;
             case 'V':
                 END(token, 2);
                 produce(0xE);
@@ -499,10 +499,6 @@ static void for_code()
                 END(token, 2);
                 push_imed();
                 continue;
-            case 'P':
-                END(token, 2);
-                produce(0x3);
-                continue;
             case 'R':
                 if(token[2] != '.') error("expected register number");
                 produce_reg(0x5, token.c_str());
@@ -542,6 +538,10 @@ static void for_code()
             case 'T':
                 END(token, 2);
                 produce(0x7);
+                continue;
+            case 'W':
+                END(token, 2);
+                produce(0x0F);
                 continue;
             default: error("invalid token");
             }

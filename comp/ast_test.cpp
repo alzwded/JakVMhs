@@ -28,6 +28,18 @@ int main(int argc, char* argv[])
     std::shared_ptr<VarDecl> resDecl(new VarDecl("res", initRes));
     sub1->Add(resDecl);
 
+    std::shared_ptr<Atom> atom3i(new Atom("3"));
+    std::shared_ptr<Atom> atom5i(new Atom("5"));
+    std::shared_ptr<BinaryOp> newParam(new BinaryOp("add", atom3i, atom5i));
+    std::shared_ptr<Allocation> allocat(new Allocation(newParam));
+    std::shared_ptr<Atom> atomArr(new Atom("arr"));
+    std::shared_ptr<Assignation> asignNew3(new Assignation(atomArr, allocat));
+    sub1->Add(asignNew3);
+
+    std::shared_ptr<Atom> atomArrBis(new Atom("arr"));
+    std::shared_ptr<Deallocation> deallocat(new Deallocation(atomArrBis));
+    sub1->Add(deallocat);
+
     std::shared_ptr<Atom> atomC(new Atom("res"));
     std::shared_ptr<BinaryOp> subCsumAB(new BinaryOp("substract", atomC, initRes));
     std::shared_ptr<Assignation> incC(new Assignation(atomC, subCsumAB));
