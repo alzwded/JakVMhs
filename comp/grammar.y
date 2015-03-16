@@ -2,6 +2,29 @@
 #define YYDEBUG 1
 #include "parser.hpp"
 #include "lexer.hpp"
+
+#include <stack>
+
+static std::stack<std::shared_ptr<Node>> g_stack;
+#define FLAG_SHARED (0x1)
+static g_parserFlags = 0x0;
+
+static std::shared_ptr<Node> variableMagic(std::string const& varName)
+{
+    if(std::all_of(&varName.c_str()[0], &varName.c_str()[varName.size()],
+        [](char const& c) -> bool {
+            return isnum(c);
+        })
+    ) {
+        return new Atom(varName);
+    } else if(varName[0] == '*') {
+        auto expr = g_stack.back();
+        g_stack.push_back();
+        return new RefVar(new Atom((varName.c_str() + 1)), expr);
+    } else {
+        return new Atom(varName);
+    }
+}
  
 int yyerror(yyscan_t scanner, const char *msg) {
     // Add error handling routine as needed
@@ -118,13 +141,24 @@ typedef void* yyscan_t;
 %type JMPLABEL*/
 %%
 
-program_for_real : program { logEnd(); } ;
+program_for_real : {
+                       std::shared_ptr<Node> prg(new Program());
+                       g_stack.push_back(prg);
+                   }
+                   program { logEnd(); } ;
 
-program : program top_level | ;
+program : program top_level {
+              auto container = g_stack.back();
+              g_stack.pop_back();
+              auto prg = std::dynamic_cast<Program>(g_stack.back());
+              prg.Add(container);
+          }
+          | ;
 
 top_level : shared_clause | sub | EOL ;
 
 shared_clause : "shared" {
+                    g_parserFlags |= FLAG_SHARED;
                     log("shared", "");
                     ++indent;
                     logEndStatement();
@@ -132,33 +166,59 @@ shared_clause : "shared" {
                     log("end", "shared");
                     --indent;
                     logEndStatement();
+                    g_parserFlags &= ~FLAG_SHARED;
                 }
                 ;
 
-variable_decl_list : var_decl | variable_decl_list "," var_decl ;
+variable_decl_list : var_decl {
+                         auto n = g_stack.back();
+                         g_stack.pop_back();
+                         auto parent = std::dynamic_cast<Container>(g_stack.back());
+                         parent.Add(n);
+                     }
+                     | variable_decl_list "," var_decl {
+                         auto n = g_stack.back();
+                         g_stack.pop_back();
+                         auto parent = std::dynamic_cast<Container>(g_stack.back());
+                         parent.Add(n);
+                     }
+                     ;
 
 var_decl : VAR_ID {
                log("declare", $1);
                logEndStatement();
+               if(g_parserFlags & FLAG_SHARED) {
+                   std::shared_ptr<Empty> empty(new Empty());
+                   std::shared_ptr<SharedDecl> shDecl(new SharedDecl($1, empty));
+                   g_stack.push_back(shDecl);
+               } else {
+                   std::shared_ptr<Empty> empty(new Empty());
+                   std::shared_ptr<VarDecl> varDecl(new VarDecl($1, empty));
+                   g_stack.push_back(varDecl);
+               }
            }
            | VAR_ID { 
                log("declare", $1);
                } "=" expression {
                log("save to", $1);
                logEndStatement();
+               if(g_parserFlags & FLAG_SHARED) {
+                   std::shared_ptr<Node> expression = g_stack.back();
+                   g_stack.pop_back();
+                   std::shared_ptr<SharedDecl> shDecl(new SharedDecl($1, expression));
+                   g_stack.push_back(shDecl);
+               } else {
+                   std::shared_ptr<Node> expression = g_stack.back();
+                   std::shared_ptr<VarDecl> varDecl(new VarDecl($1, expression));
+                   g_stack.push_back(varDecl);
+               }
            }
            ;
 
-variable_list : VAR_ID {
-                    log("with", $1);
-                }
-                | variable_list "," VAR_ID {
-                    log("with", $3);
-                }
-                ;
-
 sub : "sub" IDENT {
           log("sub", $2);
+          std::vector<std::string> blank;
+          std::shared_ptr<Sub> call(new Sub($2, blank));
       } "(" opt_variable_list ")" EOL {
           ++indent; logEndStatement();
       } clause_list "end" "sub" EOL { 
@@ -167,24 +227,53 @@ sub : "sub" IDENT {
       }
       ;
 
+variable_list : VAR_ID {
+                    log("with", $1);
+                    auto parent = std::dynamic_cast<Sub>(g_stack.back());
+                    parent.AddParam($1);
+                }
+                | variable_list "," VAR_ID {
+                    log("with", $3);
+                    auto parent = std::dynamic_cast<Sub>(g_stack.back());
+                    parent.AddParam($3);
+                }
+                ;
+
 opt_variable_list : | variable_list ;
 
 clause_list : sub_clauses | clause_list sub_clauses ;
 
 sub_clauses : var_clause | shared_clause | inner_clauses ;
 
-var_clause : "var" { log("var", ""); ++indent; logEndStatement(); } variable_decl_list EOL { log("end", "var"); --indent; logEndStatement(); } ;
+var_clause : "var" {
+                 log("var", ""); ++indent; logEndStatement();
+             } variable_decl_list EOL {
+                 log("end", "var"); --indent; logEndStatement();
+             }
+             ;
 
 inner_clause_list : inner_clauses | inner_clause_list inner_clauses ;
 
-inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | label_decl | free_statement ;
+inner_clauses : label_decl true_inner_clauses {
+                   std::string lblName($1);
+                   auto n = g_stack.back();
+                   g_stack.pop_back();
+                   std::shared_ptr<Labelled> label(new Labelled(lblName, n));
+                   g_stack.push_back(label);
+                }
+                | true_inner_clauses
+                ;
+
+true_inner_clauses : if_statement | loop_statement | next_statement | return_statement | for_statement | break_statement | assignment_statement | call_statement | empty_statement | free_statement ;
 
 label_decl : INTEGER ":" {
                  log("label", $1);
+                 $$ = $1;
                  //logEndStatement();
              }
              | VAR_ID ":" { 
                  log("label", $1);
+                 $$ = $1;
                  //logEndStatement();
              }
              ;
@@ -203,12 +292,20 @@ if_statement : "if" {
                    log("false", $9);
                    --indent;
                    logEndStatement();
+
+                   auto operand = g_stack.back();
+                   g_stack.pop_back();
+                   std::shared_ptr<If> cond(new If(operand, $7, $9));
+                   g_stack.push_back(cond);
                }
                ;
 
 loop_statement : "loop" EOL { 
                      log("loop", "infinite");
                      ++indent; logEndStatement();
+                     std::shared_ptr<Empty> empty(new Empty());
+                     std::shared_ptr<Loop> loop(new Loop(empty));
+                     g_stack.push_back(loop);
                  } inner_clause_list "end" "loop" EOL {
                      log("end", "loop");
                      --indent; logEndStatement();
@@ -217,6 +314,10 @@ loop_statement : "loop" EOL {
                      log("loop", "with");
                  } "(" expression ")" EOL {
                      ++indent; logEndStatement();
+                     auto cond = g_stack.back();
+                     g_stack.pop_back();
+                     std::shared_ptr<Loop> loop(new Loop(cond));
+                     g_stack.push_back(loop);
                  } inner_clause_list "end" "loop" EOL {
                      log("end", "loop");
                      --indent; logEndStatement();
@@ -228,6 +329,11 @@ for_statement : "for" IDENT "=" IDENT "," IDENT EOL {
                      log("start", $4);
                      log("end", $6);
                      ++indent; logEndStatement();
+                     auto for_to = variableMagic();
+                     auto for_from = variableMagic();
+                     std::shared_ptr<Empty> empty(new Empty());
+                     std::shared_ptr<For> loop(new For($2, for_from, for_to, empty));
+                     g_stack.push_back(loop);
                  } inner_clause_list "end" "for" EOL {
                      log("end", "for");
                      --indent; logEndStatement();

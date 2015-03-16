@@ -213,10 +213,15 @@ class Sub
     std::string name_;
     std::vector<std::string> params_;
 public:
-    Sub(decltype(name_) const& name, decltype(params_) const& params)
+    Sub(decltype(name_) const& name)
         : name_(name)
-        , params_(params)
+        , params_()
     {}
+
+    void AddParam(std::string const& param)
+    {
+        params_.push_back(param);
+    }
 
     CETTER(Name, name_)
     CETTER(Params, params_)
@@ -295,12 +300,13 @@ public:
 };
 
 class RefVar
-: public Node
+: public UnaryNode
 {
     std::shared_ptr<Atom> var_;
 public:
-    RefVar(decltype(var_) const& var)
-        : var_(var)
+    RefVar(operand_t const& operand, decltype(var_) const& var)
+        : UnaryNode(operand)
+        , var_(var)
     {}
 
     CETTER(Variable, var_)
