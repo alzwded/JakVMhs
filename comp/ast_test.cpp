@@ -16,10 +16,9 @@ int main(int argc, char* argv[])
     std::shared_ptr<SharedDecl> shDecl2(new SharedDecl("x", initX));
     prg->Add(shDecl2);
 
-    std::vector<std::string> sub1params;
-    sub1params.push_back("a");
-    sub1params.push_back("b");
-    std::shared_ptr<Sub> sub1(new Sub("Main", sub1params));
+    std::shared_ptr<Sub> sub1(new Sub("Main"));
+    sub1->AddParam("a");
+    sub1->AddParam("b");
     prg->Add(sub1);
 
     std::shared_ptr<Atom> atomA(new Atom("a"));
