@@ -1,0 +1,30 @@
+shared x = 0, y
+
+sub f(a, b)
+  var c
+  var d = 2
+  var d = 2 + 3
+  c = a
+
+  b = (c + a) * b
+  b = (c + a) * (b + 1)
+  c = @b
+  c = call f(a, b)
+  a = new 3
+  a[0] = new 1
+  a[1] = new 3 * 5 + 2
+  free a[0]
+  call f
+  for c = a, b
+    a = a + 1
+    if(a == (3 + 1)) 10, -
+    next
+10: a = a + 1
+  end for
+  a = from "lib" call utility
+  a = from "lib" call utility + call f(41 + a[3 * 5 + 2], call g(0)) + from "lib" call utility
+  call f(a[3 + 2])
+  a[0] = 31
+return 0
+return
+end sub
