@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "jakvmhs.h"
 
@@ -17,17 +18,17 @@ struct {
 #define SP 31
 #define IP 32
 #define RLAST 33
-    short regs[RLAST];
-    unsigned char code[0x10000];
-    short data[0x10000];
+    signed_t regs[RLAST];
+    code_t code[0x10000];
+    signed_t data[0x10000];
 
-    short stack_data[0x10000];
+    signed_t stack_data[0x10000];
 } machine;
 
 #define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
 
 static char const* g_image = NULL; // executable image filename
-static short* g_save_data = NULL; // pointer to mmap'd region
+static signed_t* g_save_data = NULL; // pointer to mmap'd region
 
 //============================================================
 // internal
@@ -76,7 +77,7 @@ static void error(char const* msg)
 static void reset_machine_state()
 {
     // clear stacks
-    memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(short));
+    memset(&machine.stack_data[0], 0, 0xFFFF * sizeof(signed_t));
     machine.regs[SP] = 0;
     // start at 0x0
     machine.regs[IP] = 0;
@@ -84,7 +85,7 @@ static void reset_machine_state()
 
 // loads or creates the persistent file and mmaps it into g_save_data
 // the filename is essentially [csh] g_image:r.sav
-static short* open_save_data()
+static signed_t* open_save_data()
 {
     // determine file name
     char* rName = (char*)malloc(strlen(g_image) + 4);
@@ -125,11 +126,11 @@ static short* open_save_data()
 
     close(fd);
 
-    return (short*)ptr;
+    return (signed_t*)ptr;
 }
 
 // release mmap'd region
-static void dispose_of_save_data(short** p)
+static void dispose_of_save_data(signed_t** p)
 {
     cassert(p);
     munmap(*p, 512);
@@ -137,7 +138,7 @@ static void dispose_of_save_data(short** p)
 }
 
 // get the pointer to the mmap'd region of the persistent file
-static short* get_save_data_ptr()
+static signed_t* get_save_data_ptr()
 {
     if(g_save_data) return g_save_data;
     return g_save_data = open_save_data();
@@ -165,8 +166,8 @@ static void load_image()
     char* image = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, offset);
 
     // copy memory
-    memcpy(machine.data, image + 0x10000, sizeof(short) * 0x10000);
-    memcpy(machine.code, image, sizeof(unsigned char) * 0x10000);
+    memcpy(machine.data, image + 0x10000, sizeof(signed_t) * 0x10000);
+    memcpy(machine.code, image, sizeof(code_t) * 0x10000);
 
     munmap(image, sb.st_size);
     close(fd);
@@ -176,16 +177,16 @@ static void load_image()
 // stack management
 //-------------------------------------------------------------
 
-static void push(short x)
+static void push(signed_t x)
 {
     cassert(machine.regs[SP] < 0x10000);
     machine.stack_data[machine.regs[SP]++] = x;
 }
 
-static short pop()
+static signed_t pop()
 {
     cassert(machine.regs[SP] > 0);
-    short ret = machine.stack_data[--machine.regs[SP]];
+    signed_t ret = machine.stack_data[--machine.regs[SP]];
     return ret;
 }
 
@@ -199,7 +200,7 @@ static short pop()
 
 // dereference an internal string as a C string
 // must be free'd
-static char* os_deref_string(unsigned short pStr)
+static char* os_deref_string(unsigned_t pStr)
 {
     size_t start = pStr;
     size_t end;
@@ -212,9 +213,9 @@ static char* os_deref_string(unsigned short pStr)
 
     size_t count = start, len = 0;
     char* p = (char*)&machine.data[start];
-    char* decoded = (char*)malloc(sizeof(char) * sizeof(short) * (end - start + 1));
+    char* decoded = (char*)malloc(sizeof(char) * (end - start + 1));
     while(1) {
-        unsigned short crnt = machine.data[count];
+        unsigned_t crnt = machine.data[count];
         decoded[len++] = (crnt & 0xFF00) >> 8;
         if(!decoded[len - 1]) break;
         ++count;
@@ -235,7 +236,7 @@ static char* os_deref_string(unsigned short pStr)
 // log a single word
 static void os_logword()
 {
-    short w = pop();
+    signed_t w = pop();
     switch(g_logger_state) {
     case LS_SECOND:
         printf("%35X\n", (int)w);
@@ -253,7 +254,7 @@ static void os_logword()
 // log a null terminated memory location
 static void os_logstring_p()
 {
-    short w = pop();
+    unsigned_t w = pop();
     char* s = os_deref_string(w);
     switch(g_logger_state) {
     case LS_SECOND:
@@ -277,10 +278,10 @@ static void os_logstring_p()
 // read a single word from persistent storage
 static void os_read_save_word()
 {
-    short save_word_address = pop();
+    signed_t save_word_address = pop();
     cassert(save_word_address >= 0 && save_word_address < 256);
 
-    short* save_data = get_save_data_ptr();
+    signed_t* save_data = get_save_data_ptr();
     cassert(save_data);
     push(save_data[save_word_address]);
 }
@@ -288,11 +289,11 @@ static void os_read_save_word()
 // write a single word from persistent storage
 static void os_write_save_word()
 {
-    short save_word_address = pop();
-    short word = pop();
+    signed_t save_word_address = pop();
+    signed_t word = pop();
     cassert(save_word_address >= 0 && save_word_address < 256);
 
-    short* save_data = get_save_data_ptr();
+    signed_t* save_data = get_save_data_ptr();
     cassert(save_data);
     save_data[save_word_address] = word;
 }
@@ -300,33 +301,33 @@ static void os_write_save_word()
 // transfer N words from persistent storage into memory
 static void os_get_save_data()
 {
-    short save_data_addr = pop();
-    unsigned short howMuch = pop();
-    short mem_addr = pop();
+    signed_t save_data_addr = pop();
+    unsigned_t howMuch = pop();
+    unsigned_t mem_addr = pop();
 
     cassert(save_data_addr >= 0 && save_data_addr < 256);
     cassert((size_t)mem_addr + (size_t)howMuch < 0x10000);
     cassert((size_t)save_data_addr + (size_t)howMuch < 256);
 
-    short* save_data = get_save_data_ptr();
+    signed_t* save_data = get_save_data_ptr();
 
-    memcpy(&machine.data[mem_addr], &save_data[save_data_addr], howMuch * sizeof(short));
+    memcpy(&machine.data[mem_addr], &save_data[save_data_addr], howMuch * sizeof(signed_t));
 }
 
 // transfer N words from memory to persistent storage
 static void os_put_save_data()
 {
-    short save_data_addr = pop();
-    unsigned short howMuch = pop();
-    short mem_addr = pop();
+    signed_t save_data_addr = pop();
+    unsigned_t howMuch = pop();
+    unsigned_t mem_addr = pop();
 
     cassert(mem_addr >= 0 && mem_addr < 256);
     cassert((size_t)save_data_addr + (size_t)howMuch < 0x10000);
     cassert((size_t)mem_addr + (size_t)howMuch < 256);
 
-    short* save_data = get_save_data_ptr();
+    signed_t* save_data = get_save_data_ptr();
 
-    memcpy(&save_data[save_data_addr], &machine.data[mem_addr], howMuch * sizeof(short));
+    memcpy(&save_data[save_data_addr], &machine.data[mem_addr], howMuch * sizeof(signed_t));
 }
 
 //-------------------------------------------------------------
@@ -334,13 +335,13 @@ static void os_put_save_data()
 //-------------------------------------------------------------
 
 // R/W memory access
-static unsigned short* os_deref(unsigned short address)
+static unsigned_t* os_deref(unsigned_t address)
 {
     return &machine.data[address];
 }
 
 // called from a utility library to start executing VM code from address
-static void os_exec_vm_code(unsigned short address)
+static void os_exec_vm_code(unsigned_t address)
 {
     error("NOT IMPLEMENTED os_exec_vm_code");
 }
@@ -360,8 +361,8 @@ static vm_utilities_t os_get_vm_utilities()
 // call an arbitrary utility routine from an arbitrary utility library
 static void os_callextroutine()
 {
-    short wLib = pop();
-    short wFunc = pop();
+    unsigned_t wLib = pop();
+    unsigned_t wFunc = pop();
     char const* libname = os_deref_string(wLib);
 
     typedef struct {
@@ -417,46 +418,46 @@ static void os_callextroutine()
 
 static void add()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
     push(a + b);
 }
 
 static void and()
 {
-    unsigned short b = pop();
-    unsigned short a = pop();
+    unsigned_t b = pop();
+    unsigned_t a = pop();
     push(a & b);
 }
 
 static void compare()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
 
     push(b > a);
 }
 
 static void compare_unsigned()
 {
-    unsigned short b = pop();
-    unsigned short a = pop();
+    unsigned_t b = pop();
+    unsigned_t a = pop();
 
     push(b > a);
 }
 
 static void compare_signed()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
 
     push(b > a);
 }
 
 static void div_op()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
     push((b) ? a / b : -32768);
 }
 
@@ -468,7 +469,7 @@ static void halt_this_thing()
 
 static void interrupt()
 {
-    short which = pop();
+    unsigned_t which = pop();
     switch(which) {
     case 3:
         os_logword();
@@ -507,35 +508,35 @@ static void interrupt()
 
 static void ior()
 {
-    unsigned short b = pop();
-    unsigned short a = pop();
+    unsigned_t b = pop();
+    unsigned_t a = pop();
     push(a | b);
 }
 
 static void jump()
 {
-    unsigned short addr = pop();
+    unsigned_t addr = pop();
     machine.regs[IP] = addr - 1;
 }
 
 static void jump_ifzero()
 {
-    unsigned short addr = pop();
-    short cond = pop();
+    unsigned_t addr = pop();
+    signed_t cond = pop();
 
     if(!cond) machine.regs[IP] = addr - 1;
 }
 
 static void load()
 {
-    unsigned short addr = pop();
+    unsigned_t addr = pop();
     push(machine.data[addr]);
 }
 
 static void mod()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
     push(a % b);
 }
 
@@ -546,7 +547,7 @@ static void mul()
 
 static void neg()
 {
-    unsigned short a = pop();
+    unsigned_t a = pop();
     push(~a);
 }
 
@@ -563,30 +564,30 @@ static void pop_register(size_t reg)
 static void dup_op()
 {
     cassert(machine.regs[SP] > 0);
-    short val = machine.stack_data[machine.regs[SP] - 1];
+    signed_t val = machine.stack_data[machine.regs[SP] - 1];
     push(val);
 }
 
 static void push_immed()
 {
-    unsigned short addr = machine.regs[IP];
-    unsigned char hi = machine.code[addr + 1],
-                  lo = machine.code[addr + 2];
+    unsigned_t addr = machine.regs[IP];
+    unsigned_t hi = machine.code[addr + 1],
+               lo = machine.code[addr + 2];
     push((hi << 8) | lo);
     machine.regs[IP] += 2;
 }
 
 static void register_swap()
 {
-    unsigned short tmp = machine.regs[0];
+    unsigned_t tmp = machine.regs[0];
     machine.regs[0] = machine.regs[SP];
     machine.regs[SP] = tmp;
 }
 
 static void swap()
 {
-    unsigned short n = pop();
-    unsigned short tmp = machine.stack_data[machine.regs[SP] - 1];
+    unsigned_t n = pop();
+    unsigned_t tmp = machine.stack_data[machine.regs[SP] - 1];
     machine.stack_data[machine.regs[SP] - 1] =
         machine.stack_data[machine.regs[SP] - 1 - n];
     machine.stack_data[machine.regs[SP] - 1 - n] = tmp;
@@ -610,8 +611,8 @@ static void register_inc(size_t reg)
 
 static void register_mask(size_t reg)
 {
-    unsigned short mask = pop();
-    unsigned short val = machine.regs[reg];
+    unsigned_t mask = pop();
+    unsigned_t val = machine.regs[reg];
     push(mask & val);
 }
 
@@ -622,11 +623,11 @@ static void register_push(size_t reg)
 
 static void register_rol(size_t reg)
 {
-    short x = pop();
-    int left = x > 0;
-    short amount = x & 0x1F;
-    unsigned short v = machine.regs[reg];
-    unsigned short mask = 0xFFFF;
+    signed_t x = pop();
+    bool left = x > 0;
+    unsigned_t amount = x & 0x1F;
+    unsigned_t v = machine.regs[reg];
+    unsigned_t mask = 0xFFFF;
     if(left) {
         mask <<= amount;
         mask >>= amount;
@@ -642,9 +643,9 @@ static void register_rol(size_t reg)
 
 static void register_sh(size_t reg)
 {
-    short x = pop();
-    int left = x > 0;
-    short amount = x & 0x1F;
+    signed_t x = pop();
+    bool left = x > 0;
+    unsigned_t amount = x & 0x1F;
     if(left) {
         machine.regs[reg] <<= amount;
     } else {
@@ -654,35 +655,35 @@ static void register_sh(size_t reg)
 
 static void return_op()
 {
-    unsigned short addr = machine.regs[RA];
+    unsigned_t addr = machine.regs[RA];
     machine.regs[IP] = addr;
 }
 
 static void call_op()
 {
-    unsigned short addr = pop();
+    unsigned_t addr = pop();
     machine.regs[RA] = machine.regs[IP];
     machine.regs[IP] = addr - 1;
 }
 
 static void store()
 {
-    short val = pop();
-    unsigned short addr = pop();
+    signed_t val = pop();
+    unsigned_t addr = pop();
     machine.data[addr] = val;
 }
 
 static void sub()
 {
-    short b = pop();
-    short a = pop();
+    signed_t b = pop();
+    signed_t a = pop();
     push(a - b);
 }
 
 static void xor()
 {
-    unsigned short b = pop();
-    unsigned short a = pop();
+    unsigned_t b = pop();
+    unsigned_t a = pop();
     push(a ^ b);
 }
 
@@ -692,8 +693,8 @@ static void xor()
 
 static void further_decode()
 {
-    unsigned short addr = machine.regs[IP];
-    unsigned char opcode = machine.code[addr];
+    unsigned_t addr = machine.regs[IP];
+    code_t opcode = machine.code[addr];
     switch(opcode) {
         default:
         case 0x00:
@@ -778,8 +779,8 @@ static void further_decode()
 
 static void decode()
 {
-    unsigned short addr = machine.regs[IP];
-    unsigned char opcode = machine.code[addr];
+    unsigned_t addr = machine.regs[IP];
+    unsigned_t opcode = machine.code[addr];
     switch((opcode >> 5) & 0x7) {
         default:
         case 0x0:
@@ -824,7 +825,7 @@ static void exec()
 int main(int argc, char* argv[])
 {
     if(argc != 2) abort();
-    memset(&machine.regs[0], 0, sizeof(short) * RLAST);
+    memset(&machine.regs[0], 0, sizeof(signed_t) * RLAST);
     g_image = argv[1];
 
     g_logger_state = LS_FIRST;

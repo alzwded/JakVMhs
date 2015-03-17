@@ -3,18 +3,18 @@
 #include <stdio.h>
 #include <math.h>
 
-static void test_printnum(vm_utilities_t vm, short (*regs)[33])
+static void test_printnum(vm_utilities_t vm, signed_t (*regs)[33])
 {
-    short num = vm.pop();
+    signed_t num = vm.pop();
 
     printf("Your number was: %d\n", (int)num);
 }
 
-static void test_pow(vm_utilities_t vm, short (*regs)[33])
+static void test_pow(vm_utilities_t vm, signed_t (*regs)[33])
 {
-    short exp = vm.pop();
-    short base = vm.pop();
-    short res = pow(base, exp);
+    signed_t exp = vm.pop();
+    signed_t base = vm.pop();
+    signed_t res = pow(base, exp);
     vm.push(res);
 }
 
