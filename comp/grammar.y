@@ -5,15 +5,16 @@
 #include "ast.hpp"
 #include "xmldumpvisitor.hpp"
 
+#include <getopt.h>
+
 #include <cctype>
+#include <cstdlib>
+
 #include <string>
 #include <deque>
 #include <stack>
 #include <memory>
 #include <algorithm>
-#include <cstdlib>
-#include <unistd.h>
-
 
 static std::stack<std::shared_ptr<Node>> g_stack;
 #define FLAG_SHARED (0x1)
