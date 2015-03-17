@@ -266,12 +266,12 @@ void XMLDumpVisitor::Visit(Atom& node)
 void XMLDumpVisitor::Visit(RefVar& node)
 {
     Indent();
-    output_ << "<ref>" << std::endl; 
+    output_ << "<deref>" << std::endl; 
     indentation++;
     node.Variable()->Accept(this);
     --indentation;
     Indent();
-    output_ << "</ref>" << std::endl; 
+    output_ << "</deref>" << std::endl; 
 }
 
 void XMLDumpVisitor::Visit(Labelled& node)

@@ -11,13 +11,36 @@
 #include <stack>
 #include <memory>
 #include <algorithm>
+#include <cstdlib>
+#include <unistd.h>
 
-#define WITH_CLASSIC_LOG
-#define WITH_STACK_DUMPS 0
+
+static std::stack<std::shared_ptr<Node>> g_stack;
+#define FLAG_SHARED (0x1)
+#define FLAG_CLASSIC_LOG (0x2)
+#define FLAG_STACK_DUMPS (0x4)
+#define FLAG_XML_DUMPS (0x8)
+static unsigned g_parserFlags = 0x0;
+
+#ifndef WITH_CLASSIC_LOG
+# define WITH_CLASSIC_LOG 1
+#endif
+#ifndef WITH_STACK_DUMPS
+# define WITH_STACK_DUMPS 1
+#endif
+#ifndef WITH_XML_DUMPS
+# define WITH_XML_DUMPS 1
+#endif
+
+
+#ifndef NOT_USED
+# define NOT_USED(X) ((void)(X))
+#endif
 
 #if defined(WITH_STACK_DUMPS) && WITH_STACK_DUMPS
 # include <typeinfo>
 # define STACK_DUMP() do{\
+    if(!(g_parserFlags & FLAG_STACK_DUMPS)) break; \
     decltype(g_stack) copy = g_stack; \
     std::cerr << "== begin stack dump ==" << std::endl; \
     auto i = 0u; \
@@ -26,30 +49,50 @@
         copy.pop(); \
     } \
 }while(0)
+# define POP(S) do{\
+    if(!(g_parserFlags & FLAG_STACK_DUMPS)) { (S).pop(); break; } \
+    std::cerr << std::endl; \
+    std::cerr << "==== popping" << std::endl; \
+    xmldump((S).top()); \
+    std::cerr << std::endl; \
+    STACK_DUMP(); \
+    (S).pop(); \
+    std::cerr << "...after pop" << std::endl; \
+    if((S).empty()) std::cerr << "empty" << std::endl; \
+    else xmldump((S).top()); \
+}while(0)
 #else
 # define STACK_DUMP() do{ ((void*) 0); }while(0)
+# define POP(S) ((S).pop())
 #endif
 
 #define BINARY_OP(OP) do{\
     STACK_DUMP(); \
     auto right = g_stack.top(); \
-    g_stack.pop(); \
+    POP(g_stack); \
     auto left = g_stack.top(); \
-    g_stack.pop(); \
+    POP(g_stack); \
     std::shared_ptr<Node> bop(new BinaryOp(OP, left, right)); \
     g_stack.push(bop); \
 }while(0)
 #define UNARY_OP(OP) do{\
     STACK_DUMP(); \
     auto right = g_stack.top(); \
-    g_stack.pop(); \
+    POP(g_stack); \
     std::shared_ptr<Node> bop(new UnaryOp(OP, right)); \
     g_stack.push(bop); \
 }while(0)
 
-static std::stack<std::shared_ptr<Node>> g_stack;
-#define FLAG_SHARED (0x1)
-static unsigned g_parserFlags = 0x0;
+static void xmldump(std::shared_ptr<Node> const& n)
+{
+#if defined(WITH_XML_DUMPS) && WITH_XML_DUMPS
+    if(!(g_parserFlags & FLAG_XML_DUMPS)) return;
+    XMLDumpVisitor v;
+    n->Accept(&v);
+#else
+    NOT_USED(n);
+#endif
+}
 
 static std::shared_ptr<Node> variableMagic(std::string const& varName)
 {
@@ -59,7 +102,7 @@ static std::shared_ptr<Node> variableMagic(std::string const& varName)
         ret = new Atom(varName);
     } else if(varName[0] == '*') {
         auto expr = g_stack.top();
-        g_stack.pop();
+        POP(g_stack);
         ret = new Atom((varName.c_str() + 1), expr);
     } else {
         ret = new Atom(varName);
@@ -76,19 +119,32 @@ int yyerror(yyscan_t scanner, const char *msg) {
 static size_t indent = 0;
 static void log(char const* msg, std::string const& value)
 {
+#if defined(WITH_CLASSIC_LOG) && WITH_CLASSIC_LOG
+    if(!(g_parserFlags & FLAG_CLASSIC_LOG)) return;
     printf("<%s:%s> ", msg, value.c_str());
+#else
+    NOT_USED(msg);
+    NOT_USED(value);
+#endif
 }
 static void logEndStatement()
 {
+#if defined(WITH_CLASSIC_LOG) && WITH_CLASSIC_LOG
+    if(!(g_parserFlags & FLAG_CLASSIC_LOG)) return;
     printf("\n");
     for(size_t i = 0; i < indent; ++i) {
         printf(". ");
     }
+#endif
 }
 static void logEnd()
 {
+#if defined(WITH_CLASSIC_LOG) && WITH_CLASSIC_LOG
+    if(!(g_parserFlags & FLAG_CLASSIC_LOG)) return;
     printf("<end:program>\n");
+#endif
 }
+
 %}
 
 %code requires {
@@ -177,10 +233,13 @@ typedef void* yyscan_t;
 %token VAR_ID
 %token EOL
 
-/*%type atom
+/*
+%type atom
 %type VAR
 %type IDENT
-%type JMPLABEL*/
+%type JMPLABEL
+%type DEREFABLE
+*/
 %%
 
 program_for_real : {
@@ -210,19 +269,17 @@ shared_clause : "shared" {
 
 variable_decl_list : var_decl {
                          auto n = g_stack.top();
-                         g_stack.pop();
+                         POP(g_stack);
                          auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
                          parent->Add(n);
-                         XMLDumpVisitor v;
-                         parent->Accept(&v);
+                         xmldump(parent);
                      }
                      | variable_decl_list "," var_decl {
                          auto n = g_stack.top();
-                         g_stack.pop();
+                         POP(g_stack);
                          auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
                          parent->Add(n);
-                         XMLDumpVisitor v;
-                         parent->Accept(&v);
+                         xmldump(parent);
                      }
                      ;
 
@@ -248,12 +305,12 @@ var_decl : VAR_ID {
                STACK_DUMP();
                if(g_parserFlags & FLAG_SHARED) {
                    std::shared_ptr<Node> expression = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    std::shared_ptr<SharedDecl> shDecl(new SharedDecl($1, expression));
                    g_stack.push(shDecl);
                } else {
                    std::shared_ptr<Node> expression = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    std::shared_ptr<VarDecl> varDecl(new VarDecl($1, expression));
                    g_stack.push(varDecl);
                }
@@ -264,13 +321,16 @@ sub : "sub" IDENT {
           log("sub", $2);
           std::shared_ptr<Sub> sub(new Sub($2));
           g_stack.push(sub);
+          STACK_DUMP();
       } "(" opt_variable_list ")" EOL {
           ++indent; logEndStatement();
       } clause_list "end" "sub" EOL { 
           log("end", "sub");
           --indent; logEndStatement();
+          STACK_DUMP();
           auto n = g_stack.top();
-          g_stack.pop();
+          POP(g_stack);
+          STACK_DUMP();
           auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
           parent->Add(n);
       }
@@ -306,7 +366,7 @@ inner_clause_list : inner_clauses | inner_clause_list inner_clauses ;
 inner_clauses : label_decl true_inner_clauses {
                    std::string lblName($1);
                    auto n = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    std::shared_ptr<Labelled> label(new Labelled(lblName, n));
                    //g_stack.push(label);
                    auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
@@ -314,7 +374,7 @@ inner_clauses : label_decl true_inner_clauses {
                 }
                 | true_inner_clauses {
                    auto n = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    auto parent = std::dynamic_pointer_cast<ContainerNode>(g_stack.top());
                    parent->Add(n);
                 }
@@ -334,7 +394,11 @@ label_decl : INTEGER ":" {
              }
              ;
 
-empty_statement : EOL ;
+empty_statement : EOL {
+                    std::shared_ptr<Empty> empty(new Empty());
+                    g_stack.push(empty);
+                }
+                ;
 
 if_statement : "if" {
                    log("if", "");
@@ -350,7 +414,7 @@ if_statement : "if" {
                    logEndStatement();
 
                    auto operand = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    std::shared_ptr<If> cond(new If(operand, $7, $9));
                    g_stack.push(cond);
                }
@@ -371,7 +435,7 @@ loop_statement : "loop" EOL {
                  } "(" expression ")" EOL {
                      ++indent; logEndStatement();
                      auto cond = g_stack.top();
-                     g_stack.pop();
+                     POP(g_stack);
                      std::shared_ptr<Loop> loop(new Loop(cond));
                      g_stack.push(loop);
                  } inner_clause_list "end" "loop" EOL {
@@ -415,7 +479,7 @@ return_statement : "return" EOL { log("return", ""); logEndStatement();
                  }
                  | "return" expression EOL { log("return", ""); logEndStatement();
                      auto n = g_stack.top();
-                     g_stack.pop();
+                     POP(g_stack);
                      std::shared_ptr<Return> ret(new Return(n));
                      g_stack.push(ret);
                  }
@@ -437,7 +501,7 @@ assignment_statement : VAR "=" expression EOL {
                            log("save to", $1);
                            logEndStatement();
                            auto expr = g_stack.top();
-                           g_stack.pop();
+                           POP(g_stack);
                            auto var = variableMagic($1);
                            std::shared_ptr<Assignation> ass(new Assignation(var, expr));
                            g_stack.push(ass);
@@ -446,7 +510,7 @@ assignment_statement : VAR "=" expression EOL {
                            log("save to", $1);
                            logEndStatement();
                            auto expr = g_stack.top();
-                           g_stack.pop();
+                           POP(g_stack);
                            auto var = variableMagic($1);
                            std::shared_ptr<Assignation> ass(new Assignation(var, expr));
                            g_stack.push(ass);
@@ -456,7 +520,7 @@ assignment_statement : VAR "=" expression EOL {
 
 new_expression : "new" expression { log("allocate", "");
                    auto n = g_stack.top();
-                   g_stack.pop();
+                   POP(g_stack);
                    std::shared_ptr<Allocation> alloc(new Allocation(n));
                    g_stack.push(alloc);
                }
@@ -513,9 +577,7 @@ call_statement : call_expression EOL { logEndStatement(); } ;
 expression_list : { log("with", ""); } expression {
                       STACK_DUMP();
                       auto n = g_stack.top();
-                      g_stack.pop();
-                      XMLDumpVisitor v;
-                      n->Accept(&v);
+                      POP(g_stack);
                       auto call = std::dynamic_pointer_cast<Call>(g_stack.top());
                       call->AddParam(n);
                   }
@@ -524,18 +586,17 @@ expression_list : { log("with", ""); } expression {
                   } expression {
                       STACK_DUMP();
                       auto n = g_stack.top();
-                      g_stack.pop();
-                      XMLDumpVisitor v;
-                      n->Accept(&v);
+                      POP(g_stack);
                       auto call = std::dynamic_pointer_cast<Call>(g_stack.top());
                       call->AddParam(n);
                   }
                   ;
 
 atom : IDENT { 
+         STACK_DUMP();
          auto n = variableMagic($1);
-         //std::shared_ptr<Node> n(new Atom($1));
          g_stack.push(n);
+         STACK_DUMP();
      }
      ;
 
@@ -563,7 +624,7 @@ numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); BINARY_O
                      | TOKEN_MINUS expression { log("-", "unary"); UNARY_OP("-"); }
                      | TOKEN_BITNEG expression { log("~", ""); UNARY_OP("~"); }
                      | TOKEN_NOT expression { log("!", ""); UNARY_OP("!"); }
-                     | TOKEN_DEREF VAR {
+                     | TOKEN_DEREF DEREFABLE {
                          STACK_DUMP();
                          log("@", $2);
                          auto var = variableMagic($2);
@@ -573,6 +634,7 @@ numeric_expression   : expression TOKEN_PLUS expression { log("+", ""); BINARY_O
                      | atom { log("atom", $1); }
                      ;
 
+DEREFABLE : INTEGER { $$ = $1; } | VAR { $$ = $1; }
 IDENT : INTEGER { $$ = $1; } | STRING { $$ = $1; } | VAR { $$ = $1; } ;
 JMPLABEL : TOKEN_MINUS { $$.assign("-"); } | IDENT { $$ = $1; } ;
 VAR : VAR_ID { $$ = $1; } | VAR_ID { log("deref", $1); } "[" expression "]" { log("end", "deref"); $$ = std::string("*").append($1); } ;
@@ -583,7 +645,7 @@ VAR : VAR_ID { $$ = $1; } | VAR_ID { log("deref", $1); } "[" expression "]" { lo
  
 int yyparse(yyscan_t scanner);
  
-void doparse(const char* expr)
+void parse_string(const char* expr)
 {
     yyscan_t scanner;
     YY_BUFFER_STATE state;
@@ -607,7 +669,7 @@ void doparse(const char* expr)
     return;
 }
 
-void parse_stdin()
+void parse_stream(FILE* f)
 {
     yyscan_t scanner;
     YY_BUFFER_STATE state;
@@ -615,9 +677,11 @@ void parse_stdin()
     if (yylex_init(&scanner)) {
         // couldn't initialize
         return;
+    } else {
+        yyset_in(f, scanner);
     }
 
-    state = yy_create_buffer(stdin, YY_BUF_SIZE, scanner);
+    state = yy_create_buffer(f, YY_BUF_SIZE, scanner);
  
     if (yyparse(scanner)) {
         // error parsing
@@ -634,48 +698,102 @@ void parse_stdin()
 #define L(X) X "\n"
 #include <fstream>
 
-int main(void)
+static char const* optString = "hdo:x:";
+
+void usage(char const* imgname)
 {
-    yydebug = 1;
-    char test[] = L("shared x = 0, y")
-        L("")
-        L("sub f(a, b)")
-        L("  var c")
-        L("  var d = 2")
-        L("  var d = 2 + 3")
-        L("  c = a")
-        //L("       ")
-        L("  b = (c + a) * b")
-        L("  b = (c + a) * (b + 1)")
-        L("  c = @b")
-        L("  c = call f(a, b)")
-        L("  a = new 3")
-        L("  a[0] = new 1")
-        L("  a[1] = new 3 * 5 + 2")
-        L("  free a[0]")
-        L("  call f")
-        L("  for c = a, b")
-        L("    a = a + 1")
-        L("    if(a == (3 + 1)) 10, -")
-        L("    next")
-        L("10: a = a + 1")
-        L("  end for")
-        L("  a = from \"lib\" call utility")
-        L("  a = from \"lib\" call utility + call f(41 + a[3 * 5 + 2], call g(0)) + from \"lib\" call utility")
-        L("  call f(a[3 + 2])")
-        L("  a[0] = 31")
-        L("return 0")
-        L("return")
-        L("end sub")
-        ;
- 
-    doparse(test);
+    std::cerr << "Usage: imgname [-" << optString << "] files..." << std::endl;
+    exit(255);
+}
 
-    std::fstream testfile("parser.xml", std::ios::out);
-    XMLDumpVisitor v(testfile);
-    g_stack.top()->Accept(&v);
+int main(int argc, char* argv[])
+{
+    char c;
+    std::string outputFname("");
+    bool xml(true);
 
-    parse_stdin();
+    yydebug = 0;
+
+    while((c = getopt(argc, argv, optString)) != -1) {
+        switch(c) {
+        case 'd':
+            yydebug = 1;
+            g_parserFlags |= FLAG_CLASSIC_LOG | FLAG_STACK_DUMPS | FLAG_XML_DUMPS;
+            break;
+        case 'o':
+            outputFname.assign(optarg);
+            xml = false;
+            break;
+        case 'x':
+            outputFname.assign(optarg);
+            xml = true;
+            break;
+        case '?':
+            if(optopt == 'o' || optopt == 'x') {
+                outputFname.assign("");
+                break;
+            }
+            /*FALLTHROUGH*/
+        case 'h':
+            usage(argv[0]);
+            break;
+        default:
+            abort();
+        }
+    }
+
+    if(optind >= argc) {
+        usage(argv[0]);
+    }
+
+    if(outputFname == "-") {
+        outputFname.assign("");
+    }
+
+    for(auto index = optind; index < argc; ++index) {
+        if(strcmp(argv[index], "-") == 0) {
+            parse_stream(stdin);
+            continue;
+        }
+
+        FILE* f = fopen(argv[index], "r");
+
+        if(!f) {
+            std::cerr << "failed to open " << argv[index] << std::endl;
+            exit(1);
+        }
+
+        parse_stream(f);
+
+        fclose(f);
+    }
+
+    std::ofstream ff;
+    if(!outputFname.empty()) {
+        ff.open(outputFname, std::ios::out);
+        if(!ff.good()) {
+            std::cerr << "failed to open " << outputFname << std::endl;
+            exit(1);
+        }
+    }
+    std::ostream& f = (outputFname.empty()) ? std::cout : ff;
+
+    Visitor* v;
+    if(xml) {
+        v = new XMLDumpVisitor(f);
+    } else {
+        std::cerr << "not implemented" << std::endl;
+        exit(2);
+    }
+
+    while(!g_stack.empty()) {
+        g_stack.top()->Accept(v);
+        g_stack.pop();
+    }
+
+    if(ff.is_open()) ff.close();
+
+    delete v;
  
     return 0;
 }
