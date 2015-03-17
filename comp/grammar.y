@@ -735,11 +735,10 @@ int main(int argc, char* argv[])
                 break;
             }
             /*FALLTHROUGH*/
+        default:
         case 'h':
             usage(argv[0]);
             break;
-        default:
-            abort();
         }
     }
 
