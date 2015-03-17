@@ -9,12 +9,16 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <cstdio>
 
 #include <string>
 #include <deque>
 #include <stack>
 #include <memory>
 #include <algorithm>
+#include <fstream>
+#include <ofstream>
+#include <iostream>
 
 static std::stack<std::shared_ptr<Node>> g_stack;
 #define FLAG_SHARED (0x1)
@@ -642,8 +646,6 @@ VAR : VAR_ID { $$ = $1; } | VAR_ID { log("deref", $1); } "[" expression "]" { lo
 
 %%
 
-#include <cstdio>
- 
 int yyparse(yyscan_t scanner);
  
 void parse_string(const char* expr)
@@ -695,9 +697,6 @@ void parse_stream(FILE* f)
  
     return;
 }
-
-#define L(X) X "\n"
-#include <fstream>
 
 static char const* optString = "hdo:x:";
 
