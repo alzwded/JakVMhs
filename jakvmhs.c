@@ -578,9 +578,18 @@ static void push_immed()
 
 static void register_swap()
 {
-    unsigned short tmp = machine.regs[RA];
-    machine.regs[RA] = machine.regs[SP];
+    unsigned short tmp = machine.regs[0];
+    machine.regs[0] = machine.regs[SP];
     machine.regs[SP] = tmp;
+}
+
+static void swap()
+{
+    unsigned short n = pop();
+    unsigned short tmp = machine.stack_data[machine.regs[SP] - 1];
+    machine.stack_data[machine.regs[SP] - 1] =
+        machine.stack_data[machine.regs[SP] - 1 - n];
+    machine.stack_data[machine.regs[SP] - 1 - n] = tmp;
 }
 
 static void reset()
@@ -745,6 +754,9 @@ static void further_decode()
             break;
         case 0x13:
             not();
+            break;
+        case 0x14:
+            swap();
             break;
         case 0x17:
             neg();

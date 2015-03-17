@@ -26,9 +26,10 @@ xor                     bitwise xor
 not                     logical negation
 neg                     bitwise negation
 
-swap.regs               swaps R.30 and R.31
+swap.regs               swaps R.0 and R.31
+swap                    pops N, swaps the top value with the Nth value
 
-compare.signed          pushes 0 if top value is less than next (signed)
+compare.signed          pushes 0 if top value is lte next (signed)
 compare.unsigned        pushes 1 if top value is greatest (unsigned)
 
 jump                    unconditional jump to address in top register

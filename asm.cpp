@@ -553,6 +553,9 @@ static void for_code()
             case 'U':
                 produce(0xB);
                 continue;
+            case 'W':
+                produce(0x14);
+                continue;
             default: error("invalid token");
             }
         case 'X':
