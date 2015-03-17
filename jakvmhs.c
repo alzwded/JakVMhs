@@ -25,7 +25,7 @@ struct {
     signed_t stack_data[0x10000];
 } machine;
 
-#define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed: %s\n", #X), abort(), 0 : 1)
+#define cassert(X) (!(X) ? fprintf(stderr, "Assertion failed at %s:%d in %s:\n\t%s\n", __FILE__, __LINE__, __func__, #X), exit(42), 0 : 1)
 
 static char const* g_image = NULL; // executable image filename
 static signed_t* g_save_data = NULL; // pointer to mmap'd region
@@ -62,11 +62,17 @@ static inline void logger(int flags, char const* fmt, ...)
     va_end(args);
 }
 
+static void usage(char const* imgname)
+{
+    printf("Usage: %s image.hss\n", imgname);
+    exit(255);
+}
+
 static void error(char const* msg)
 {
     logger(LOG_ERR, "Error @%d %s\n", machine.regs[IP], (msg)?msg:"");
     fflush(stderr);
-    abort();
+    exit(42);
 }
 
 //-------------------------------------------------------------
@@ -824,7 +830,8 @@ static void exec()
 
 int main(int argc, char* argv[])
 {
-    if(argc != 2) abort();
+    if(argc < 2 || strcmp(argv[1], "-h") == 0) usage(argv[0]);
+    cassert(argc == 2);
     memset(&machine.regs[0], 0, sizeof(signed_t) * RLAST);
     g_image = argv[1];
 
